@@ -1,0 +1,58 @@
+[
+  {
+    "id": "SC_self_defense",
+    "holding": "정당방위: 침해의 현재성·부당성·방어의사·상당성 동시 검토 (대법원)",
+    "factorBoost": 8,
+    "factorPenalty": 12,
+    "triggers": ["막으려", "방어", "정당", "밀치는 것을 막", "손을 잡", "쫓겨"]
+  },
+  {
+    "id": "SC_mutual_combat",
+    "holding": "쌍방 폭행: 선제 공격·흉기 주도권·피해 규모로 실질 가해자 구분 (대법원)",
+    "factorBoost": 5,
+    "factorPenalty": 18,
+    "triggers": ["쌍방", "서로", "맞붙", "주고받"]
+  },
+  {
+    "id": "SC_dv_victim",
+    "holding": "가정폭력: 반복·관계성·신고 의사로 피해자 보호 우선 (대법원)",
+    "factorBoost": 10,
+    "factorPenalty": 6,
+    "triggers": ["신고", "112", "피해자", "남편", "아내"]
+  },
+  {
+    "id": "SC_intox_voluntary",
+    "holding": "자의적 음주: 형법 제10조3항 — 심신미약 감경 주장 제한 (대법원)",
+    "factorBoost": 6,
+    "factorPenalty": 14,
+    "triggers": ["술", "취해", "주취", "만취"]
+  },
+  {
+    "id": "SC_illegal_evidence",
+    "holding": "위수증: 영장주의·적법절차 위반 시 증거능력 배제 위험 (대법원)",
+    "factorBoost": 0,
+    "factorPenalty": 25,
+    "triggers": ["압수", "수색", "체포", "휴대폰", "녹음"]
+  },
+  {
+    "id": "SC_preemptive_attack",
+    "holding": "선제 공격: 먼저 시비·도발·밀친 자가 실질 공격 유발자로 판단되는 경향 (대법원)",
+    "factorBoost": 12,
+    "factorPenalty": 8,
+    "triggers": ["선제", "먼저", "시비", "욕설", "도발", "덮치"]
+  },
+  {
+    "id": "SC_weapon_dominance",
+    "holding": "흉기 주도권: 소지·꺼냄·휘두름 주도권이 공격자 판단의 결정적 요소 (대법원)",
+    "factorBoost": 14,
+    "factorPenalty": 10,
+    "triggers": ["들고", "휘두르", "꺼내", "칼", "흉기", "소주병"]
+  },
+  {
+    "id": "SC_warrantless_seizure",
+    "holding": "형소법 제216조: 영장 없는 압수·수색은 예외 요건 엄격 해석 (대법원)",
+    "factorBoost": 0,
+    "factorPenalty": 20,
+    "triggers": ["압수", "수색", "휴대폰", "문자", "카톡"]
+  }
+]

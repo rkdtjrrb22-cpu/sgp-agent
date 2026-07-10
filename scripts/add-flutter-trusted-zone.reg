@@ -1,0 +1,18 @@
+Windows Registry Editor Version 5.00
+
+; Flutter SDK / 프로젝트를 로컬 인트라넷(신뢰) 구역으로 등록
+; → dart.bat / flutter.bat 보안 경고 완화
+; 적용: 더블클릭 또는  reg import scripts\add-flutter-trusted-zone.reg
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Ranges\RangeFlutterSdk]
+":Range"="C:\\src\\flutter"
+"file"=dword:00000001
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Ranges\RangeSgpAgent]
+":Range"="C:\\SGP-Agent"
+"file"=dword:00000001
+
+; 개발 PC 전용: 서명 없는 .bat 실행 확인 완화 (선택)
+; 다른 .bat 보안도 낮아지므로 필요 시에만 주석 해제
+; [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Associations]
+; "LowRiskFileTypes"=".bat;.cmd;.exe;.zip;.reg;.msi"

@@ -1,0 +1,11 @@
+{
+  "dart.sdkPath": "C:\\src\\flutter\\bin\\cache\\dart-sdk",
+  "dart.flutterSdkPath": "C:\\src\\flutter",
+  "dart.flutterSdkPaths": ["C:\\src\\flutter"],
+  "dart.flutterDeviceId": "R3CW203HFGK",
+  "dart.runPubGetOnPubspecChanges": "always",
+  "terminal.integrated.env.windows": {
+    "FLUTTER_ROOT": "C:\\src\\flutter",
+    "PATH": "C:\\SGP-Agent\\tools;${env:PATH}"
+  }
+}

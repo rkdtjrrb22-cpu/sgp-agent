@@ -1,0 +1,212 @@
+# SGP-Agent
+
+
+
+SGP-Agent는 현장 경찰관의 초동 수사 판단을 보조하는 온디바이스 법리 매핑 에이전트입니다.
+
+
+
+목표는 10월 검경 수사권 변화에 따라 요구되는 경찰 수사역량을 AI로 보완하되, AI가 결정을 대신하지 않고 수사관의 자기판단을 강화하는 것입니다.
+
+
+
+## 설계 원칙
+
+
+
+- 온디바이스 우선: 무전·진술·법리 판단 정보는 단말 내부에서 처리합니다.
+
+- 고신뢰성: 입력문에 없는 시간, 장소, 행위, 인적사항은 자동 생성하지 않습니다.
+
+- 근거 중심: 키워드 매칭 근거, 적용 법리, 추가 확인 필요 항목을 함께 표시합니다.
+
+- Human-in-the-Loop: 최종 서류 확정은 수사관이 책임 고지를 확인해야만 가능합니다.
+
+- 행정 편의성: 법리 가이드와 별도로 사건 기록 문서 초안을 생성합니다.
+
+
+
+## 현재 핵심 기능
+
+
+
+- 규칙 기반 법리 매핑: 흉기·위험물, 관계성 폭력, 주취·약물, 도주·신분확인 거부
+
+- CoT형 법리 추론 출력: 핵심 법리, 강제처분, 초동조치 체크리스트
+
+- SGP-Agent Pro 3대 혁신 엔진: 가·피해자 분리, 공소유지 예측, 위수증 방어망
+
+- 신뢰성 점검: 판단 근거, 보완 필요 사실, 환각 방지 상태 표시
+
+- 사건 기록 문서 초안: 접수·인지 경위, 주요 확인 사항, 적용 법리 검토
+
+- 로컬 저장/조회/삭제: 단말 앱 전용 저장소에 JSON 기록 보관
+
+- 체포 T-0 타임라인: 물리력·채증·신병인계·사법 서류 초안
+
+- 양자적 법률 비교: 형법·특별법·민사 다관점 대조 및 행동 지침
+
+- 판례 OTA: `assets/data/court_precedents.json` 기반 판례 트렌드 반영
+
+
+
+## UI/UX (Material 3 다크)
+
+
+
+통합 테마: `lib/features/agent/sgp_app_theme.dart` (`SgpAppTheme`)
+
+
+
+| 역할 | 색상 | 용도 |
+
+|------|------|------|
+
+| 배경 | `#121218` | Scaffold, 시스템 내비게이션 |
+
+| 표면 | `#1A1D26` ~ `#242836` | 카드, 입력 필드, 패널 |
+
+| Primary | `#6366F1` 인디고 | 주요 버튼, AppBar 강조 |
+
+| Accent | `#22D3EE` 시안 | STT·링크·탭 강조 |
+
+| 성공/경고/오류 | 에메랄드 / 앰버 / 코랄 | 상태·긴급도 (저자극) |
+
+
+
+- `main.dart`에서 `theme: SgpAppTheme.dark` 적용
+
+- CoT·현장 UI는 `SgpCotColors` / `SgpFieldColors` 별칭으로 동일 팔레트 참조
+
+- **내일 확인:** SM-S918N 실기기에서 야간·실외 가독성 검증 권장
+
+
+
+## STT 연동 (실연동)
+
+
+
+| 단계 | 상태 | 설명 |
+
+|------|------|------|
+
+| 1차 | **활성** | Android `SpeechRecognizer` + 단말 마이크 한국어 실시간 전사 |
+
+| 2차 | 탐지 | USB/유선 헤드셋(무전 케이블) 오디오 입력 자동 감지 |
+
+| 3차 | 예정 | Whisper JNI 온디바이스 (네이티브 `whisperBound`) |
+
+
+
+- 가짜 STT 문장을 생성하지 않습니다.
+
+- 마이크 권한(`RECORD_AUDIO`) 필요.
+
+- 삼성 등 단말: 설정 → Google → 음성 → 오프라인 음성 인식(한국어) 설치 시 오프라인 동작.
+
+
+
+## sLLM 연동 (브리지)
+
+
+
+- `lib/native/sgp_native_bridge.dart` — Dart ↔ Android MethodChannel
+
+- `SgpNativePlugin.kt` — llama.cpp / GGUF mmap 슬롯 (현재 Dart 규칙 엔진 폴백)
+
+- 네이티브 연동 완료 시 `_runInference`가 자동으로 sLLM 출력 사용
+
+
+
+## Windows — Run 시 `dart.bat` 보안 경고
+
+
+
+**원인:** Flutter SDK의 `dart.bat`이 서명 없는 배치 파일이라 Windows가 실행 전 확인 창을 띄웁니다. Android Studio Run이 매번 `dart.bat`을 호출합니다.
+
+
+
+**조치 (1회):**
+
+
+
+```powershell
+
+cd C:\SGP-Agent
+
+Set-ExecutionPolicy -Scope Process Bypass
+
+.\scripts\fix-windows-flutter-security.ps1
+
+```
+
+
+
+그다음 보안 창이 뜨면:
+
+
+
+1. **「이 파일을 열기 전에 항상 확인(W)」 체크 해제**
+
+2. **「실행(R)」** 클릭
+
+
+
+**추가 권장:** Android Studio → Settings → Dart → SDK path를  
+
+`C:\src\flutter\bin\cache\dart-sdk` 로 설정 (`dart.bat` 직접 호출 방지).
+
+
+
+프로젝트에 `.vscode/settings.json` 동일 설정 포함.
+
+### 레지스트리 신뢰 구역 (보안창이 계속 뜰 때)
+
+```powershell
+cd C:\SGP-Agent
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\fix-windows-flutter-security.ps1 -ApplyRegistry
+```
+
+또는 `scripts\add-flutter-trusted-zone.reg` 더블클릭 → 예.
+
+### 터미널 Run (보안창 없음)
+
+```cmd
+cd C:\SGP-Agent
+tools\flutter-direct.cmd run -d YOUR_DEVICE_ID
+```
+
+`flutter-direct.cmd`는 `dart.exe`만 직접 호출하므로 `.bat` 보안 경고가 뜨지 않습니다.
+
+## 빌드
+
+**실행 대상: Android 단말만** (Windows 데스크톱 미지원 — `device-id=windows` 사용 시 오류)
+
+```cmd
+cd C:\SGP-Agent
+scripts\run-android.cmd
+```
+
+또는 Android Studio Run 구성: **main.dart (SM-S918N)** · 기기 `R3CW203HFGK`
+
+```bash
+flutter pub get
+tools\flutter-direct.cmd run -d R3CW203HFGK
+tools\flutter-direct.cmd build apk --debug
+adb install -r build\app\outputs\flutter-apk\app-debug.apk
+```
+
+
+
+## 내일 이어하기
+
+
+
+1. **실기기 UI 검증** — 인디고/시안 대비, STT·책임 고지·타임라인 버튼 가시성
+
+2. **선택** — `sgp_agent_stt.dart` `SpeechListenOptions` deprecation 정리
+
+3. **선택** — `flutter test` isolate hang 이슈 조사
+
+

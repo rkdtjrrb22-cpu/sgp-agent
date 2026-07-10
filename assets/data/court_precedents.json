@@ -1,0 +1,42 @@
+[
+  {
+    "id": "trend_self_defense_relax_2025",
+    "trend": "정당방위 인정 완화 추세",
+    "holding": "대법원 — 침해의 현재성이 인정되면 방어 수단의 상당성 범위가 다소 넓게 해석되는 추세",
+    "weightBoost": 0.18,
+    "triggers": ["방어", "막으", "위협", "정당", "쫓기"],
+    "appliesTo": ["criminal", "mutual_combat", "general"]
+  },
+  {
+    "id": "trend_intox_voluntary_deny_2024",
+    "trend": "주취감경 배제 강화",
+    "holding": "대법원 — 자의적 음주로 인한 형법 제10조 3항 심신미약 감경 주장 제한",
+    "weightBoost": 0.14,
+    "triggers": ["술", "취해", "주취", "만취", "음주"],
+    "appliesTo": ["criminal", "general"]
+  },
+  {
+    "id": "trend_dog_owner_liability_2025",
+    "trend": "견주 책임·동물보호법 처벌 강화",
+    "holding": "하급심·대법원 — 목줄·입마개 미착용 시 동물보호법 제97조 우선 적용 경향",
+    "weightBoost": 0.22,
+    "triggers": ["개", "견", "맹견", "목줄", "입마개", "물어", "반려견", "견주"],
+    "appliesTo": ["dog_bite_incident", "special"]
+  },
+  {
+    "id": "trend_stalking_enforcement_2025",
+    "trend": "스토킹·가정폭력 처벌 강화",
+    "holding": "스토킹처벌법·가정폭력처벌법 — 피해자 보호·긴급응급조치 적극 운용",
+    "weightBoost": 0.16,
+    "triggers": ["스토킹", "따라", "신고", "가정", "폭력", "112"],
+    "appliesTo": ["domestic_violence", "special"]
+  },
+  {
+    "id": "trend_illegal_evidence_strict_2024",
+    "trend": "위수증 배제 엄격화",
+    "holding": "대법원 — 영장 없는 디지털 증거·절차 위반 시 증거능력 배제 위험 확대",
+    "weightBoost": 0.12,
+    "triggers": ["압수", "체포", "휴대폰", "녹음", "채증"],
+    "appliesTo": ["criminal", "general"]
+  }
+]

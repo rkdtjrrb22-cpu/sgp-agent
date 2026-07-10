@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "SGP-Agent (SM-S918N Android)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "R3CW203HFGK",
+      "env": {
+        "FLUTTER_ROOT": "C:\\src\\flutter"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+; LAST RESORT: suppress Open File Security Warning for .bat/.cmd
+; Import only if trusted-zone.reg did not help.
+; Revert: delete the LowRiskFileTypes value in regedit.
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Associations]
+"LowRiskFileTypes"=".bat;.cmd;.exe;.zip;.reg;.msi"
