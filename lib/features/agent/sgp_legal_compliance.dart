@@ -35,6 +35,13 @@ import 'package:flutter/material.dart';
 /// 비공식 저장소 패치 수신은 보안업무규정·공급망 위험이 있다.
 const bool kEnableRemoteOta = false;
 
+/// Sprint S5 — legal_hierarchy 시드 OTA (판례 OTA와 분리).
+const bool kEnableLegalHierarchyOta = false;
+
+/// Sprint S5 — POST /v1/quantum-legal/resolve 원격 resolve.
+/// true 시 raw_text가 서버로 전송됨 — 정통법·보안업무규정 승인 후 활성.
+const bool kEnableRemoteResolve = false;
+
 /// STT 최초 사용 시 통비법 준수 고지 (앱 세션당 1회).
 class SgpSttComplianceGate {
   SgpSttComplianceGate._();

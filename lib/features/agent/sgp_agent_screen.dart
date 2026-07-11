@@ -21,6 +21,8 @@ import 'sgp_report_generator.dart';
 import 'sgp_quantum_legal_engine.dart';
 import 'sgp_court_precedents_ota.dart';
 import 'sgp_legal_hierarchy.dart';
+import 'sgp_legal_hierarchy_ota.dart';
+import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
 import 'sgp_app_theme.dart';
 import 'sgp_voice_legal_binder.dart';
@@ -74,6 +76,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   SgpProcedureTimeline? _procedureTimeline;
   SgpQuantumLegalComparison? _quantumComparison;
   String? _otaStatus;
+  String? _hierarchyOtaStatus;
   VoiceLegalMatchResult _voiceLegalMatch = VoiceLegalMatchResult.empty;
 
   static const _liabilityNotice =
@@ -125,30 +128,41 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   }
 
   Future<void> _initLegalHierarchy() async {
-    await SgpLegalHierarchyRegistry.instance.initialize(
+    await SgpLegalHierarchyOta.instance.initialize(
       loadAsset: () => rootBundle.loadString(SgpLegalHierarchyRegistry.assetPath),
     );
     if (!mounted) return;
-    setState(() {});
+    setState(() => _hierarchyOtaStatus = SgpLegalHierarchyOta.instance.lastRefreshStatus);
   }
 
-  void _refreshQuantumAnalysis() {
+  Future<void> _refreshQuantumAnalysisAsync() async {
     final text = _rawTextController.text.trim();
     if (text.isEmpty) {
-      if (_quantumComparison != null) {
+      if (_quantumComparison != null && mounted) {
         setState(() => _quantumComparison = null);
       }
       return;
     }
-    final comparison = SgpQuantumLegalEngine.analyze(
+    final comparison = await SgpQuantumLegalRemote.resolveWithFallback(
+      localAnalyze: () => SgpQuantumLegalEngine.analyze(
+        rawText: text,
+        checklist: _checklist,
+        ruleResult: _ruleResult,
+        advancedAnalysis: _advancedAnalysis,
+        timeline: _procedureTimeline,
+        orgId: SgpOrgAccessGate.provisionedOrgId,
+      ),
       rawText: text,
       checklist: _checklist,
-      ruleResult: _ruleResult,
-      advancedAnalysis: _advancedAnalysis,
-      timeline: _procedureTimeline,
       orgId: SgpOrgAccessGate.provisionedOrgId,
+      localGovCode: inferLocalGovCodeFromText(text),
     );
+    if (!mounted) return;
     setState(() => _quantumComparison = comparison);
+  }
+
+  void _refreshQuantumAnalysis() {
+    unawaited(_refreshQuantumAnalysisAsync());
   }
 
   bool get _canGenerateReport =>
@@ -923,7 +937,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                   SgpBluetoothStatusBar(
                     sttEngine: _sttEngine,
                     sttState: _sttState,
-                    otaStatus: _otaStatus,
+                    otaStatus: [
+                      _otaStatus,
+                      _hierarchyOtaStatus,
+                    ].whereType<String>().join(' · '),
                   ),
                   const SizedBox(height: 12),
                   _buildSttField(),

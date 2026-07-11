@@ -199,6 +199,7 @@ tools\flutter-direct.cmd run -d YOUR_DEVICE_ID
 |------|------|
 | [`docs/quantum_legal_hierarchy_work_order.html`](docs/quantum_legal_hierarchy_work_order.html) | **양자 법률적용·위계 필터링 엔진** 개발 작업지시서 (8단계 LV, 스프린트, API·DB 초안) |
 | [`docs/작업지시서.md`](docs/작업지시서.md) | 일일 재개용 작업 지시·체크리스트 |
+| [`docs/s5_api_and_db.md`](docs/s5_api_and_db.md) | **S5** REST API·DB DDL·JWT·참조 서버 |
 
 ## 빌드
 
@@ -220,40 +221,24 @@ adb install -r build\app\outputs\flutter-apk\app-debug.apk
 
 
 
-## 내일 이어하기 (2026-07-12 — S5 Phase 2)
+## 다음 작업 (S0~S5 완료 후)
 
-**Phase 1 온디바이스 완료:** S0~S4 (양자 비교 → 8단계 위계 → Cross-Filter → 트리 UI → LV7~8 파싱·조문 링크)
+**8단계 위계 로드맵 Phase 1~2 완료.** 운영 전환 시 아래만 진행.
 
-### 우선 — S5 착수 전 결정 사항
-- [ ] 백엔드 런타임 (Node / Python / Go 등) 및 배포 환경
-- [ ] JWT 발급 주체 (경찰청 IAM·내부 IdP 등)
-- [ ] 법제처·공공데이터 API 키·허용 IP·갱신 주기
+### 운영 배포 체크리스트
+- [ ] 경찰청 IAM JWT 발급 연동 + `kEnableRemoteResolve = true` (정통법·보안업무규정 승인)
+- [ ] `kEnableLegalHierarchyOta = true` + `X-SGP-Signature` 공식 키 설정
+- [ ] 참조 서버 → 운영 API 배포 (`docs/s5_api_and_db.md`)
+- [ ] 법제처 Cron 실연동 (PoC: `dart run tool/cron/sync_law_nodes.dart`)
 
-### S5 작업 순서 (권장)
-1. **API 스펙 확정** — [`docs/quantum_legal_hierarchy_work_order.html`](docs/quantum_legal_hierarchy_work_order.html) §6 `POST /v1/quantum-legal/resolve`를 온디바이스 `SgpQuantumLegalComparison` JSON과 1:1 매핑
-2. **DB 스키마** — `legal_nodes`, `actor_sessions` (§3.1 HTML 참고)
-3. **REST 구현** — hierarchy_chain + perspectives + conflicts + action_guidance
-4. **Cron** — LV1~4 법령 주 1회 동기화 (법제처·공공데이터)
-5. **Flutter 연동(선택)** — 원격 resolve 클라이언트 + `kEnableRemoteOta`와 분리된 `legal_hierarchy` OTA 채널
-
-### 재개 시 검증 명령
+### 검증
 ```cmd
-cd C:\SGP-Agent
-dart test test\features\agent\sgp_legal_hierarchy_test.dart
-tools\flutter-direct.cmd analyze lib
+dart test test\features\agent\sgp_legal_hierarchy_test.dart test\features\agent\sgp_quantum_legal_api_test.dart
+dart run bin/quantum_legal_server.dart
 tools\flutter-direct.cmd build apk --debug
-tools\flutter-direct.cmd run -d R3CW203HFGK
 ```
 
-### 실기기 스모크 (Phase 1 회귀)
-- [ ] STT 입력 → 양자 비교 + **체인/트리** 토글 + LV7~8 **준거 상위법 조문** 칩
-- [ ] 「서울 … 교통사고」→ LV5~6 서울 조례 포함
-- [ ] 행동 지침 바 **상위법 경고** / **Cross-Filter** 배지
-
 ### 알려진 이슈
-- `flutter test` isolate hang — `dart test test\features\agent\sgp_legal_hierarchy_test.dart` 사용 (19/19 통과)
-- 판례 `대법원 20XX도XXXX` 자리표시자 → 실제 판례 번호 교체는 별도 태스크
-- `kEnableRemoteOta = false` 유지 (보안업무규정 — 공식 채널 승인 전)
-
-### 오늘 커밋 (master)
-`18702f2` S1 · `5a10e3e` S2 · `8d7d63d` S3 · `666dd39` S4
+- `flutter test` isolate hang — `dart test` 사용 (27 tests)
+- 판례 `대법원 20XX도XXXX` 자리표시자 교체는 별도 태스크
+- `kEnableRemoteOta` / `kEnableRemoteResolve` / `kEnableLegalHierarchyOta` 기본 `false`
