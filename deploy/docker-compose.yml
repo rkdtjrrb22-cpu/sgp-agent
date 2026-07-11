@@ -1,0 +1,42 @@
+# Sprint S6 — 프로덕션 참조 스택 (PostgreSQL + API 서버)
+# 사용: deploy 디렉터리에서
+#   cp quantum_legal_production.env.example quantum_legal_production.env
+#   docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - quantum_legal_production.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sgp_legal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-sgp_legal}
+    ports:
+      - "5432:5432"
+    volumes:
+      - sgp_legal_pgdata:/var/lib/postgresql/data
+      - ../sql/s6_ontology_ddl.sql:/docker-entrypoint-initdb.d/02_s6_ontology.sql:ro
+
+  quantum-legal-api:
+    image: dart:3.11-sdk
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - quantum_legal_production.env
+    environment:
+      PORT: ${PORT:-8080}
+      SEED_PATH: ${SEED_PATH:-assets/data/legal_hierarchy_seed.json}
+      NPA_IAM_JWT_MODE: ${NPA_IAM_JWT_MODE:-claims}
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    volumes:
+      - ..:/app
+    command: >
+      sh -c "dart pub get && dart run bin/quantum_legal_server.dart"
+    depends_on:
+      - postgres
+
+volumes:
+  sgp_legal_pgdata:

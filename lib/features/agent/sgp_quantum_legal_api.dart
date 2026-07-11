@@ -3,6 +3,8 @@ library;
 
 import 'sgp_actor_session.dart';
 import 'sgp_agent_core.dart';
+import 'sgp_legal_ontology.dart';
+import 'sgp_legal_ontology_api.dart';
 import 'sgp_quantum_legal_engine.dart';
 
 export 'sgp_actor_session.dart';
@@ -96,12 +98,14 @@ class QuantumLegalResolveResponse {
   const QuantumLegalResolveResponse({
     required this.comparison,
     this.resolvedBy = 'on_device',
-    this.schemaVersion = '1.0',
+    this.schemaVersion = '1.1',
+    this.ontologyContext,
   });
 
   final SgpQuantumLegalComparison comparison;
   final String resolvedBy;
   final String schemaVersion;
+  final LegalOntologyResolveContext? ontologyContext;
 
   Map<String, dynamic> toJson() => {
         'schema_version': schemaVersion,
@@ -127,15 +131,21 @@ class QuantumLegalResolveResponse {
                 },
               )
               .toList(),
+        if (ontologyContext != null) 'ontology_context': ontologyContext!.toJson(),
       };
 
   factory QuantumLegalResolveResponse.fromComparison(
     SgpQuantumLegalComparison comparison, {
     String resolvedBy = 'on_device',
+    LegalOntologyGraph? ontologyGraph,
   }) {
     return QuantumLegalResolveResponse(
       comparison: comparison,
       resolvedBy: resolvedBy,
+      ontologyContext: LegalOntologyResolveContext.fromHierarchyAndGraph(
+        hierarchy: comparison.hierarchy,
+        graph: ontologyGraph,
+      ),
     );
   }
 

@@ -42,6 +42,9 @@ const bool kEnableLegalHierarchyOta = false;
 /// true 시 raw_text가 서버로 전송됨 — 정통법·보안업무규정 승인 후 활성.
 const bool kEnableRemoteResolve = false;
 
+/// Sprint S6 — 경찰 IAM JWT strict 클레임 검증 (MDM·IAM 연동 후 활성).
+const bool kEnableNpaIamStrictJwt = false;
+
 /// STT 최초 사용 시 통비법 준수 고지 (앱 세션당 1회).
 class SgpSttComplianceGate {
   SgpSttComplianceGate._();

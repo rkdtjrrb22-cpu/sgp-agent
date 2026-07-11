@@ -200,6 +200,7 @@ tools\flutter-direct.cmd run -d YOUR_DEVICE_ID
 | [`docs/quantum_legal_hierarchy_work_order.html`](docs/quantum_legal_hierarchy_work_order.html) | **양자 법률적용·위계 필터링 엔진** 개발 작업지시서 (8단계 LV, 스프린트, API·DB 초안) |
 | [`docs/작업지시서.md`](docs/작업지시서.md) | 일일 재개용 작업 지시·체크리스트 |
 | [`docs/s5_api_and_db.md`](docs/s5_api_and_db.md) | **S5** REST API·DB DDL·JWT·참조 서버 |
+| [`docs/s6_ontology_and_production.md`](docs/s6_ontology_and_production.md) | **S6** 온톨로지·경찰 IAM·프로덕션 Cron·배포 |
 
 ## 빌드
 
@@ -221,19 +222,22 @@ adb install -r build\app\outputs\flutter-apk\app-debug.apk
 
 
 
-## 다음 작업 (S0~S5 완료 후)
+## 다음 작업 (S0~S6 완료 후)
 
-**8단계 위계 로드맵 Phase 1~2 완료.** 운영 전환 시 아래만 진행.
+**8단계 위계 로드맵 Phase 1~3 완료 (S0~S6).** 운영 전환 시 아래만 진행.
 
 ### 운영 배포 체크리스트
-- [ ] 경찰청 IAM JWT 발급 연동 + `kEnableRemoteResolve = true` (정통법·보안업무규정 승인)
+- [ ] 경찰청 IAM JWT 발급 연동 + `NPA_IAM_JWT_MODE=claims` (`docs/s6_ontology_and_production.md`)
+- [ ] `kEnableRemoteResolve = true` (정통법·보안업무규정 승인)
 - [ ] `kEnableLegalHierarchyOta = true` + `X-SGP-Signature` 공식 키 설정
-- [ ] 참조 서버 → 운영 API 배포 (`docs/s5_api_and_db.md`)
-- [ ] 법제처 Cron 실연동 (PoC: `dart run tool/cron/sync_law_nodes.dart`)
+- [ ] `deploy/docker-compose.yml` 운영 API 배포 + `sql/s6_ontology_ddl.sql` 적용
+- [ ] `LAW_GO_KR_OC_KEY` 설정 후 `dart run tool/cron/sync_law_nodes_production.dart`
 
 ### 검증
 ```cmd
+dart test test\features\agent\sgp_legal_ontology_test.dart test\features\agent\sgp_npa_iam_jwt_test.dart
 dart test test\features\agent\sgp_legal_hierarchy_test.dart test\features\agent\sgp_quantum_legal_api_test.dart
+dart run tool/cron/sync_law_nodes_production.dart
 dart run bin/quantum_legal_server.dart
 tools\flutter-direct.cmd build apk --debug
 ```
