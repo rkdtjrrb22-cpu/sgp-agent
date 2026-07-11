@@ -193,6 +193,13 @@ tools\flutter-direct.cmd run -d YOUR_DEVICE_ID
 
 `flutter-direct.cmd`는 `dart.exe`만 직접 호출하므로 `.bat` 보안 경고가 뜨지 않습니다.
 
+## 문서
+
+| 문서 | 설명 |
+|------|------|
+| [`docs/quantum_legal_hierarchy_work_order.html`](docs/quantum_legal_hierarchy_work_order.html) | **양자 법률적용·위계 필터링 엔진** 개발 작업지시서 (8단계 LV, 스프린트, API·DB 초안) |
+| [`docs/작업지시서.md`](docs/작업지시서.md) | 일일 재개용 작업 지시·체크리스트 |
+
 ## 빌드
 
 **실행 대상: Android 단말만** (Windows 데스크톱 미지원 — `device-id=windows` 사용 시 오류)

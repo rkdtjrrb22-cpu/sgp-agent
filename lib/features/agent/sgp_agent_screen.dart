@@ -20,6 +20,7 @@ import 'sgp_report_dialog.dart';
 import 'sgp_report_generator.dart';
 import 'sgp_quantum_legal_engine.dart';
 import 'sgp_court_precedents_ota.dart';
+import 'sgp_legal_hierarchy.dart';
 import 'sgp_main_user_interface.dart';
 import 'sgp_app_theme.dart';
 import 'sgp_voice_legal_binder.dart';
@@ -87,6 +88,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _initEngine();
     _loadPrecedentDictionary();
     _initCourtPrecedentsOta();
+    _initLegalHierarchy();
     _initStt();
     _refreshSavedRecords();
   }
@@ -120,6 +122,14 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     await SgpCourtPrecedentsOta.instance.initialize();
     if (!mounted) return;
     setState(() => _otaStatus = SgpCourtPrecedentsOta.instance.lastRefreshStatus);
+  }
+
+  Future<void> _initLegalHierarchy() async {
+    await SgpLegalHierarchyRegistry.instance.initialize(
+      loadAsset: () => rootBundle.loadString(SgpLegalHierarchyRegistry.assetPath),
+    );
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _refreshQuantumAnalysis() {

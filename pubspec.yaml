@@ -66,6 +66,7 @@ flutter:
   assets:
     - assets/data/precedent_dictionary.json
     - assets/data/court_precedents.json
+    - assets/data/legal_hierarchy_seed.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -3,6 +3,7 @@ library;
 
 import 'sgp_agent_core.dart';
 import 'sgp_court_precedents_ota.dart';
+import 'sgp_legal_hierarchy.dart';
 import 'sgp_procedure_timeline.dart';
 
 /// 현장 긴급도 (UI 컬러 매핑).
@@ -121,6 +122,7 @@ class SgpQuantumLegalComparison {
     required this.appliedTrendIds,
     required this.summary,
     required this.hasLegalConflict,
+    this.hierarchy,
   });
 
   final IncidentType incidentType;
@@ -132,6 +134,9 @@ class SgpQuantumLegalComparison {
   final String summary;
   final bool hasLegalConflict;
 
+  /// Sprint S1 — 8단계 법적 위계 Top-Down 체인.
+  final SgpHierarchyResolution? hierarchy;
+
   Map<String, dynamic> toJson() => {
         'incidentType': incidentType.jsonKey,
         'perspectives': perspectives.map((p) => p.toJson()).toList(),
@@ -141,6 +146,7 @@ class SgpQuantumLegalComparison {
         'appliedTrendIds': appliedTrendIds,
         'summary': summary,
         'hasLegalConflict': hasLegalConflict,
+        if (hierarchy != null) 'hierarchy': hierarchy!.toJson(),
       };
 
   factory SgpQuantumLegalComparison.fromJson(Map<String, dynamic> json) {
@@ -148,6 +154,7 @@ class SgpQuantumLegalComparison {
         .map((e) => LegalPerspective.fromJson(e as Map<String, dynamic>))
         .toList();
     final recId = json['recommendedPathId'] as String?;
+    final hierarchyJson = json['hierarchy'];
     return SgpQuantumLegalComparison(
       incidentType: IncidentType.values.firstWhere(
         (t) => t.jsonKey == json['incidentType'],
@@ -163,6 +170,9 @@ class SgpQuantumLegalComparison {
           (json['appliedTrendIds'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
       summary: json['summary'] as String? ?? '',
       hasLegalConflict: json['hasLegalConflict'] as bool? ?? false,
+      hierarchy: hierarchyJson is Map<String, dynamic>
+          ? SgpHierarchyResolution.fromJson(hierarchyJson)
+          : null,
     );
   }
 }
@@ -239,6 +249,8 @@ class SgpQuantumLegalEngine {
       urgency: urgency,
     );
 
+    final hierarchy = _resolveHierarchy(incident, checklist, text);
+
     return SgpQuantumLegalComparison(
       incidentType: incident,
       perspectives: marked,
@@ -247,7 +259,36 @@ class SgpQuantumLegalEngine {
       urgencyLevel: urgency,
       appliedTrendIds: activeTrends.map((t) => t.id).toList(),
       summary: _buildSummary(incident, top, conflict),
-      hasLegalConflict: conflict,
+      hasLegalConflict: conflict || (hierarchy?.hasUpperLawWarnings ?? false),
+      hierarchy: hierarchy,
+    );
+  }
+
+  static SgpHierarchyResolution? _resolveHierarchy(
+    IncidentType incident,
+    LawCheckList checklist,
+    String text,
+  ) {
+    if (!SgpLegalHierarchyRegistry.instance.isLoaded) return null;
+
+    final domainTags = {...domainTagsForIncidentKey(incident.jsonKey)};
+    if (checklist.isDomesticViolence) domainTags.add('domestic_violence');
+    if (checklist.isSeizureConstraintReviewed) domainTags.add('procedure');
+
+    final anchors = SgpLegalHierarchyEngine.inferAnchorIds(
+      domainTags: domainTags,
+      includeProcedure: true,
+      includeEvidence: RegExp(r'(채증|녹화|바디캠|고지)').hasMatch(text),
+      includeOrgManual: true,
+    );
+
+    return SgpLegalHierarchyEngine.resolve(
+      context: LegalHierarchyContext(
+        orgId: 'KR-NPA',
+        taskCategory: 'field_arrest',
+        domainTags: domainTags,
+      ),
+      anchorNodeIds: anchors,
     );
   }
 

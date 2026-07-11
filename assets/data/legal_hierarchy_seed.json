@@ -1,0 +1,113 @@
+[
+  {
+    "id": "KR-CONST-001",
+    "level": 1,
+    "title": "대한민국 헌법",
+    "parent_id": null,
+    "scope": { "country": "KR" },
+    "filter_keys": ["global_default"],
+    "domain_tags": ["all"],
+    "summary": "모든 국가법·지방자치법·조직 규정의 최상위 전제"
+  },
+  {
+    "id": "KR-LAW-CRIMINAL",
+    "level": 2,
+    "title": "형법",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:criminal"],
+    "domain_tags": ["criminal", "violence", "property"],
+    "articles": ["제21조", "제260조", "제266조"],
+    "summary": "범죄·형벌의 일반법"
+  },
+  {
+    "id": "KR-LAW-CRIM-PROC",
+    "level": 2,
+    "title": "형사소송법",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:criminal_procedure"],
+    "domain_tags": ["criminal", "procedure", "arrest"],
+    "articles": ["제200조의2", "제211조", "제212조", "제216조"],
+    "summary": "수사·체포·압수·구속 절차"
+  },
+  {
+    "id": "KR-LAW-DV",
+    "level": 2,
+    "title": "가정폭력범죄의 처벌 등에 관한 특례법",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:domestic_violence"],
+    "domain_tags": ["criminal", "special", "domestic_violence"],
+    "summary": "가정폭력 특별법 — 형법 특칙"
+  },
+  {
+    "id": "KR-LAW-ANIMAL",
+    "level": 2,
+    "title": "동물보호법",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:animal"],
+    "domain_tags": ["criminal", "special", "animal"],
+    "articles": ["제97조"],
+    "summary": "반려동물·맹견 관리의무 위반"
+  },
+  {
+    "id": "KR-LAW-TRAFFIC",
+    "level": 2,
+    "title": "도로교통법",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:traffic"],
+    "domain_tags": ["criminal", "administrative", "traffic"],
+    "summary": "교통사고·음주운전 등"
+  },
+  {
+    "id": "KR-DECREE-CRIM-PROC",
+    "level": 3,
+    "title": "형사소송법 시행령",
+    "parent_id": "KR-LAW-CRIM-PROC",
+    "scope": { "country": "KR" },
+    "filter_keys": ["parent_law_id:KR-LAW-CRIM-PROC"],
+    "summary": "형소법 세부 시행"
+  },
+  {
+    "id": "KR-RULE-CRIM-PROC",
+    "level": 4,
+    "title": "형사소송규칙",
+    "parent_id": "KR-DECREE-CRIM-PROC",
+    "scope": { "country": "KR" },
+    "filter_keys": ["parent_decree_id:KR-DECREE-CRIM-PROC"],
+    "summary": "수사 실무 서식·절차 세부"
+  },
+  {
+    "id": "KR-LAW-POLICE-DUTY",
+    "level": 2,
+    "title": "경찰관 직무집행법",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:police_duty"],
+    "domain_tags": ["criminal", "procedure", "evidence"],
+    "articles": ["제10조의2"],
+    "summary": "현장 채증·영상녹화 고지"
+  },
+  {
+    "id": "ORG-NPA-INVEST-RULE",
+    "level": 7,
+    "title": "경찰 수사규칙 (예시 — 조직 내부)",
+    "parent_id": "KR-LAW-CRIM-PROC",
+    "scope": { "org_id": "KR-NPA" },
+    "filter_keys": ["org_id:KR-NPA"],
+    "conflict_check": true,
+    "summary": "경찰청 내부 수사 절차 — 상위법 충돌 시 무효"
+  },
+  {
+    "id": "MANUAL-SGP-FIELD-001",
+    "level": 8,
+    "title": "SGP-Agent 현장 초동조치 매뉴얼",
+    "parent_id": "ORG-NPA-INVEST-RULE",
+    "scope": { "org_id": "KR-NPA", "task_category": "field_arrest" },
+    "filter_keys": ["task_category:field_arrest"],
+    "summary": "체포 T-0·채증·신병인계 현장 체크리스트"
+  }
+]

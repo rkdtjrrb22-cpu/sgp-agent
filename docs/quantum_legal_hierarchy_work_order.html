@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>양자 법률적용 및 위계 필터링 엔진 — 개발 작업지시서</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a1d26;
+      --surface-high: #242836;
+      --border: #2e3344;
+      --primary: #6366f1;
+      --accent: #22d3ee;
+      --warning: #fbbf24;
+      --error: #f87171;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --font: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      --mono: Consolas, "D2Coding", Monaco, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+    .doc {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    header {
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem;
+      color: var(--accent);
+    }
+    .meta {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .meta span { margin-right: 1.25rem; }
+    h2 {
+      font-size: 1.25rem;
+      color: var(--text);
+      border-left: 4px solid var(--primary);
+      padding-left: 0.75rem;
+      margin: 2.5rem 0 1rem;
+    }
+    h3 {
+      font-size: 1.05rem;
+      color: var(--accent);
+      margin: 1.5rem 0 0.75rem;
+    }
+    p { margin: 0.75rem 0; }
+    b, strong { color: #fff; }
+    ol, ul { padding-left: 1.25rem; }
+    li { margin: 0.35rem 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.65rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--surface-high);
+      font-weight: 600;
+      color: var(--accent);
+    }
+    tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    td.center { text-align: center; font-weight: 600; }
+    pre {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      border-radius: 0 8px 8px 0;
+    }
+    code {
+      font-family: var(--mono);
+      background: var(--surface-high);
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+      font-size: 0.88em;
+    }
+    .callout {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+    }
+    .callout-warn {
+      background: rgba(251, 191, 36, 0.08);
+      border-color: rgba(251, 191, 36, 0.4);
+    }
+    .callout-warn::before {
+      content: "⚠ ";
+      color: var(--warning);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.15em 0.5em;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-done { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+    .badge-wip { background: rgba(34, 211, 238, 0.15); color: var(--accent); }
+    .badge-todo { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); }
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 1rem 0;
+      font-size: 0.85rem;
+    }
+    .flow-step {
+      background: var(--surface-high);
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+    }
+    .flow-arrow { color: var(--accent); }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    @media print {
+      body { background: #fff; color: #111; }
+      :root { --text: #111; --text-muted: #444; --surface-high: #f5f5f5; --border: #ccc; }
+    }
+  </style>
+</head>
+<body>
+  <article class="doc">
+    <header>
+      <h1>양자 법률적용 및 위계 필터링 엔진 개발 작업지시서</h1>
+      <p class="meta">
+        <span><strong>문서 ID:</strong> WO-QLH-2026-001</span>
+        <span><strong>버전:</strong> 1.0</span>
+        <span><strong>작성일:</strong> 2026-07-11</span>
+        <span><strong>대상:</strong> SGP-Agent / 공공·비즈니스 법률 적용 엔진</span>
+      </p>
+    </header>
+
+    <section id="overview">
+      <h2>1. 프로젝트 개요 (Project Overview)</h2>
+      <p>
+        본 프로젝트는 사용자가 처한 <b>환경</b>(국가, 특정 지자체, 소속 조직, 개인 업무 유형)에 따라
+        최상위 법인 <b>헌법(LV 1)</b>부터 최하위 <b>매뉴얼(LV 8)</b>까지의 법적 위계를 자동 분석하고,
+        두 주체(양자) 간 계약·분쟁·업무 프로세스에 적용되어야 할 <b>적법한 준거 규정</b>을
+        필터링·매핑하는 앱 엔진 기능을 개발하는 것을 목표로 합니다.
+      </p>
+      <div class="callout">
+        <strong>SGP-Agent 현재 구현과의 관계:</strong>
+        기존 <code>sgp_quantum_legal_engine.dart</code>는 <b>형사 수사 도메인</b>에서
+        형법·특별법·민사 <em>2~3관점 양자 비교</em>를 수행합니다.
+        본 작업지시서는 이를 <b>8단계 법적 위계 전체</b>로 확장하는 로드맵이며,
+        Phase 1은 현장 형사(경찰) 도메인 LV 1~4 + 내부 지침(LV 7~8)에 우선 적용합니다.
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2>2. 시스템 아키텍처 및 데이터 흐름</h2>
+      <div class="flow">
+        <span class="flow-step">① 입력 파라미터 수집</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step">② 위계 매핑 엔진</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step">③ 양자 관계 검토</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step">④ 충돌·상위법 우선</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step">⑤ 트리 UI 출력</span>
+      </div>
+      <ol>
+        <li><b>입력 파라미터 수집:</b> 유저 프로필 및 상황 데이터 — 국가, 지자체 코드, 소속 기관/기업 ID, 실무 도메인 카테고리, 양자 행위자 A/B 프로필</li>
+        <li><b>법적 위계 매핑 엔진:</b> 상위법 우선 원칙에 따라 DB 내 법령-규정 간 계층적 필터링 (Parent_ID 트리 순회)</li>
+        <li><b>양자 관계 검토:</b> 행위자 A·B 간 교집합 규정 및 상충 규정 분석 — 충돌 시 상위법·광역 적용 범위 우선 배정</li>
+        <li><b>최종 결과 출력:</b> 최상위 준거법 → 실무 매뉴얼까지 단계별 리스트, ⚠️ 충돌 경고, 액션 아이템</li>
+      </ol>
+      <h3>온디바이스(SGP-Agent) vs 서버형(공공·기업) 배치</h3>
+      <table>
+        <thead>
+          <tr><th>구분</th><th>SGP-Agent (현장)</th><th>서버형 (Phase 2+)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>LV 1~4 (국가법)</td>
+            <td>번들 JSON + 선택적 OTA (공식 채널 승인 후)</td>
+            <td>법제처 API 주 1회 동기화</td>
+          </tr>
+          <tr>
+            <td>LV 5~6 (조례·규칙)</td>
+            <td>지자체 코드별 캐시</td>
+            <td>공공데이터포털 + Cron</td>
+          </tr>
+          <tr>
+            <td>LV 7~8 (사규·매뉴얼)</td>
+            <td>단말 로컬 (수사관 입력·조직 배포 패키지)</td>
+            <td>JWT 조직 ID 인증 API</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="schema">
+      <h2>3. 핵심 개발 데이터 세트 (Data Schema Guide)</h2>
+      <p>앱에 적용할 법률 위계 데이터 구조는 아래 <b>8단계 분류 체계</b>를 엄격히 준수합니다.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>위계 레벨</th>
+            <th>규정 층위</th>
+            <th>적용 범위 (Scope)</th>
+            <th>앱 내 필터링 조건 (Filtering Key)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="center">LV 1</td>
+            <td><strong>헌법</strong></td>
+            <td>국가 전체</td>
+            <td><code>global_default</code> — 모든 양자 관계의 최상위 전제</td>
+          </tr>
+          <tr>
+            <td class="center">LV 2</td>
+            <td><strong>법률</strong></td>
+            <td>국가 전체</td>
+            <td><code>domain_tag</code> — 소관 분야 (근로기준법, 형법, 개인정보보호법 등)</td>
+          </tr>
+          <tr>
+            <td class="center">LV 3</td>
+            <td><strong>대통령령 (시행령)</strong></td>
+            <td>국가 전체</td>
+            <td><code>parent_law_id</code> — LV 2 부모-자식 링크</td>
+          </tr>
+          <tr>
+            <td class="center">LV 4</td>
+            <td><strong>총리령·부령 (시행규칙)</strong></td>
+            <td>국가 전체</td>
+            <td><code>parent_decree_id</code> — 실무 서식·세부 기준</td>
+          </tr>
+          <tr>
+            <td class="center">LV 5</td>
+            <td><strong>조례</strong></td>
+            <td>특정 지자체</td>
+            <td><code>local_gov_code</code> — 예: 11(서울), 26(부산)</td>
+          </tr>
+          <tr>
+            <td class="center">LV 6</td>
+            <td><strong>규칙 (행정/지자체)</strong></td>
+            <td>지자체/기관</td>
+            <td><code>local_gov_code</code> + <code>agency_id</code> — 고시·훈령·지자체장 규칙</td>
+          </tr>
+          <tr>
+            <td class="center">LV 7</td>
+            <td><strong>내부 규정 (정관/사규)</strong></td>
+            <td>특정 조직</td>
+            <td><code>org_id</code> — 양자 계약 당사자 A/B 사규 매핑</td>
+          </tr>
+          <tr>
+            <td class="center">LV 8</td>
+            <td><strong>매뉴얼 (지침/가이드)</strong></td>
+            <td>개인 실무</td>
+            <td><code>task_category</code> — 직무·태스크 단위 End-User 가이드</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>3.1 DB 스키마 초안 (Parent_ID 트리)</h3>
+      <pre>{
+  "legal_nodes": [
+    {
+      "id": "KR-CONST-001",
+      "level": 1,
+      "title": "대한민국 헌법",
+      "parent_id": null,
+      "scope": { "country": "KR" },
+      "filter_keys": ["global_default"],
+      "domain_tags": ["all"]
+    },
+    {
+      "id": "KR-LAW-CRIMINAL",
+      "level": 2,
+      "title": "형법",
+      "parent_id": "KR-CONST-001",
+      "scope": { "country": "KR" },
+      "filter_keys": ["domain_tag:criminal"],
+      "articles": ["제21조", "제260조", "제266조"]
+    },
+    {
+      "id": "KR-DECREE-CRIM-PROC",
+      "level": 3,
+      "title": "형사소송법 시행령",
+      "parent_id": "KR-LAW-CRIM-PROC",
+      "scope": { "country": "KR" },
+      "filter_keys": ["parent_law_id:KR-LAW-CRIM-PROC"]
+    },
+    {
+      "id": "KR-LOCAL-11-ORD-001",
+      "level": 5,
+      "title": "서울특별시 ○○ 조례",
+      "parent_id": "KR-LAW-XXX",
+      "scope": { "country": "KR", "local_gov_code": "11" },
+      "filter_keys": ["local_gov_code:11"]
+    },
+    {
+      "id": "ORG-POLICE-INTERNAL-001",
+      "level": 7,
+      "title": "경찰 수사규칙 (예시)",
+      "parent_id": "KR-LAW-CRIM-PROC",
+      "scope": { "org_id": "KR-NPA" },
+      "filter_keys": ["org_id:KR-NPA"],
+      "conflict_check": true
+    }
+  ]
+}</pre>
+    </section>
+
+    <section id="functional">
+      <h2>4. 기능적 요구사항 (Functional Requirements)</h2>
+      <ul>
+        <li>
+          <b>상위법 우선 원칙 알고리즘:</b>
+          LV 7·8이 LV 2·3과 충돌 시 ⚠️ <em>상위법 위반 경고</em> 노출,
+          상위법 기준 가이드를 우선 표출 (<code>HierarchyConflictResolver</code>).
+        </li>
+        <li>
+          <b>양자(Cross-Filtering) 매칭 로직:</b>
+          <ul>
+            <li>예: 서울 소재 A기업 ↔ B기업 협력 실무</li>
+            <li>국가법(LV 1~4) + 서울 조례/규칙(LV 5~6) + A/B 사규 교집합(LV 7) + 공통 매뉴얼(LV 8) 병합 파이프라인</li>
+            <li>형사 도메인(SGP-Agent): 형법 ↔ 특별법 ↔ 민사 경로 = 기존 <code>LegalPerspective</code> 확장</li>
+          </ul>
+        </li>
+        <li>
+          <b>동적 트리 UI:</b>
+          법률 클릭 → 시행령 → 시행규칙 → 조례 → 조직 규정 → 매뉴얼
+          Top-Down 아코디언/트리 뷰 (<code>SgpLegalHierarchyTreeWidget</code> — 신규).
+        </li>
+      </ul>
+      <div class="callout callout-warn">
+        <strong>Human-in-the-Loop:</strong> AI·규칙 엔진 출력은 <b>준거법 후보 제안</b>이며,
+        최종 법적 판단·체포·입건 결정 책임은 출동 수사관 본인에게 있습니다 (SGP-Agent 면책 바 유지).
+      </div>
+    </section>
+
+    <section id="nonfunctional">
+      <h2>5. 비기능적 요구사항 및 예외 처리</h2>
+      <ul>
+        <li><b>데이터 동기화:</b> LV 1~4 — 법제처 API·공공데이터포털 연동, 주 1회 Cron (서버형). SGP-Agent는 공식 OTA 채널 승인 전 <code>kEnableRemoteOta=false</code> 유지.</li>
+        <li><b>보안 제어:</b> LV 7~8 — 조직 ID 인증(JWT/단말 조직 패키지) 통과 세션만 조회. 수사자료 외부 공유 전 반출 확인 게이트 (<code>sgp_legal_compliance.dart</code>).</li>
+        <li><b>통비법·정통법:</b> STT는 버튼 조작식·세션 고지 게이트. 수사 데이터 서버 미전송(온디바이스).</li>
+        <li><b>충돌 미해결:</b> 상·하위법 판단 불가 시 <code>[추후 보완]</code> + 수사관 수기 확인 플래그.</li>
+      </ul>
+    </section>
+
+    <section id="api">
+      <h2>6. API 명세 초안 (서버형 Phase 2)</h2>
+      <pre>POST /v1/quantum-legal/resolve
+Content-Type: application/json
+Authorization: Bearer &lt;JWT&gt;
+
+Request:
+{
+  "actor_a": { "org_id": "ORG-A", "local_gov_code": "11", "task_category": "procurement" },
+  "actor_b": { "org_id": "ORG-B", "local_gov_code": "11", "task_category": "procurement" },
+  "situation": { "domain": "criminal", "raw_text": "...", "incident_type": "mutual_combat" },
+  "options": { "include_manuals": true, "strict_hierarchy": true }
+}
+
+Response:
+{
+  "hierarchy_chain": [ { "level": 1, "node_id": "...", "title": "..." }, ... ],
+  "perspectives": [ { "law": "...", "recommended": true, "precedent_guide": "..." } ],
+  "conflicts": [ { "lower_node_id": "...", "upper_node_id": "...", "message": "상위법 위반 가능" } ],
+  "action_guidance": "..."
+}</pre>
+      <p>온디바이스(SGP-Agent)는 동일 스키마를 <code>dart</code> 로컬 엔진으로 구현 — HTTP 불필요.</p>
+    </section>
+
+    <section id="sprint">
+      <h2>7. 스프린트 계획 (Sprint Plan)</h2>
+      <table>
+        <thead>
+          <tr><th>스프린트</th><th>기간(안)</th><th>목표</th><th>산출물</th><th>상태</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>S0</strong></td>
+            <td>완료</td>
+            <td>형사 도메인 2~3관점 양자 비교 MVP</td>
+            <td><code>sgp_quantum_legal_engine.dart</code>, 비교 카드 UI</td>
+            <td><span class="badge badge-done">완료</span></td>
+          </tr>
+          <tr>
+            <td><strong>S1</strong></td>
+            <td>2주</td>
+            <td>8단계 스키마·LV 1~4 시드 데이터 (형사·형소법)</td>
+            <td><code>assets/data/legal_hierarchy_seed.json</code>, <code>sgp_legal_hierarchy.dart</code>, 위계 체인 UI</td>
+            <td><span class="badge badge-done">완료</span></td>
+          </tr>
+          <tr>
+            <td><strong>S2</strong></td>
+            <td>2주</td>
+            <td>양자 Cross-Filter + 상위법 충돌 감지</td>
+            <td><code>HierarchyConflictResolver</code>, ⚠️ UI 배지</td>
+            <td><span class="badge badge-todo">예정</span></td>
+          </tr>
+          <tr>
+            <td><strong>S3</strong></td>
+            <td>2주</td>
+            <td>Top-Down 트리 UI + 지자체 LV 5~6</td>
+            <td><code>SgpLegalHierarchyTreeWidget</code></td>
+            <td><span class="badge badge-todo">예정</span></td>
+          </tr>
+          <tr>
+            <td><strong>S4</strong></td>
+            <td>3주</td>
+            <td>LV 7~8 조직 규정·매뉴얼 임베딩·태깅</td>
+            <td>파싱 파이프라인, 상위법 조문 링크</td>
+            <td><span class="badge badge-todo">예정</span></td>
+          </tr>
+          <tr>
+            <td><strong>S5</strong></td>
+            <td>2주</td>
+            <td>서버 API + 법제처 Cron + JWT 권한</td>
+            <td>REST API, 동기화 스케줄러</td>
+            <td><span class="badge badge-todo">Phase 2</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="actions">
+      <h2>8. 개발 파트별 액션 아이템</h2>
+      <pre>[기획/UIUX]
+• 국가 / 지자체 / 조직 / 개인 실무 레이어 분리 인터페이스
+• 양자 규정 충돌 지점 시각화 프리셋 (경고 색상·트리 접기)
+• SGP-Agent Material 3 다크 테마와 위계 레벨 색상 매핑
+
+[백엔드/DB — Phase 2]
+• legal_nodes 테이블 (id, level, parent_id, scope JSON, filter_keys)
+• actor_sessions (local_gov_code, org_id, task_category)
+• POST /v1/quantum-legal/resolve 동적 쿼리
+
+[Flutter/온디바이스 — Phase 1]
+• sgp_legal_hierarchy.dart — Parent_ID 트리 순회·필터
+• 기존 SgpQuantumLegalEngine.analyze() → HierarchyAwareQuantumEngine 래핑
+• 충돌 시 SgpActionGuidanceBar 확장 (상위법 우선 문구)
+
+[데이터/AI]
+• 사내 규정·매뉴얼 PDF/텍스트 → 상위 법령 조문 태깅 (임베딩)
+• 판례 OTA와 분리된 legal_hierarchy OTA 채널 (공식 서명 검증)
+• '대법원 20XX도XXXX' 자리표시자 → 실제 판례 번호 교체</pre>
+    </section>
+
+    <section id="review">
+      <h2>9. 아키텍처 리뷰 체크리스트</h2>
+      <ul>
+        <li>DB 스키마 초안 (<a href="#schema">§3.1</a>) — Parent_ID 무결성·순환 참조 금지</li>
+        <li>API 명세 (<a href="#api">§6</a>) — 온디바이스/서버 응답 스키마 일치</li>
+        <li>상위법 충돌 알고리즘 — LV 숫자 비교 + scope 교집합 + domain_tag 매칭</li>
+        <li>SGP-Agent 법령 준수 모듈 (<code>sgp_legal_compliance.dart</code>)과 LV 7~8 접근 통제 정합성</li>
+        <li>스프린트 S1 착수 전 — <code>legal_hierarchy.json</code> 형사·형소법 최소 20노드 시드</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>
+        본 작업지시서는 SGP-Agent 저장소 <code>docs/quantum_legal_hierarchy_work_order.html</code>에 위치합니다.<br />
+        데이터베이스 스키마·API 명세 초안 확정 후 아키텍처 리뷰를 진행합니다.
+      </p>
+    </footer>
+  </article>
+</body>
+</html>

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'sgp_app_theme.dart';
 import 'sgp_agent_stt.dart';
+import 'sgp_legal_hierarchy.dart';
 import 'sgp_quantum_legal_engine.dart';
 
 Color urgencyColor(SgpUrgencyLevel level) => switch (level) {
@@ -141,6 +142,10 @@ class SgpQuantumComparisonPanel extends StatelessWidget {
           comparison.summary,
           style: const TextStyle(fontSize: 11, color: SgpFieldColors.textSecondary, height: 1.35),
         ),
+        if (comparison.hierarchy != null && !comparison.hierarchy!.isEmpty) ...[
+          const SizedBox(height: 8),
+          SgpLegalHierarchyChainBar(resolution: comparison.hierarchy!),
+        ],
         const SizedBox(height: 10),
         IntrinsicHeight(
           child: Row(
@@ -159,6 +164,111 @@ class SgpQuantumComparisonPanel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Sprint S1 — LV 1→8 준거법 체인 (양자 비교 패널 상단).
+class SgpLegalHierarchyChainBar extends StatelessWidget {
+  const SgpLegalHierarchyChainBar({super.key, required this.resolution});
+
+  final SgpHierarchyResolution resolution;
+
+  static Color _levelColor(LegalHierarchyLevel level) => switch (level) {
+        LegalHierarchyLevel.constitution => const Color(0xFF818CF8),
+        LegalHierarchyLevel.law => SgpFieldColors.navy,
+        LegalHierarchyLevel.presidentialDecree => const Color(0xFF38BDF8),
+        LegalHierarchyLevel.ministerialRule => const Color(0xFF22D3EE),
+        LegalHierarchyLevel.localOrdinance => const Color(0xFF34D399),
+        LegalHierarchyLevel.administrativeRule => const Color(0xFFA3E635),
+        LegalHierarchyLevel.internalRegulation => SgpFieldColors.cautionOrange,
+        LegalHierarchyLevel.manual => SgpFieldColors.textSecondary,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final chain = resolution.chain;
+    if (chain.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.account_tree_outlined, size: 14, color: SgpFieldColors.textSecondary),
+            const SizedBox(width: 4),
+            Text(
+              resolution.primaryLawTitle != null
+                  ? '위계 · ${resolution.primaryLawTitle}'
+                  : '법적 위계 (Top-Down)',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: SgpFieldColors.textSecondary,
+              ),
+            ),
+            if (resolution.hasUpperLawWarnings) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.warning_amber_rounded, size: 14, color: SgpFieldColors.cautionOrange),
+            ],
+          ],
+        ),
+        const SizedBox(height: 6),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var i = 0; i < chain.length; i++) ...[
+                if (i > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Icon(Icons.chevron_right, size: 14, color: SgpFieldColors.border),
+                  ),
+                _HierarchyChip(node: chain[i]),
+              ],
+            ],
+          ),
+        ),
+        if (resolution.conflicts.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          for (final c in resolution.conflicts.take(2))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                '⚠️ ${c.message}',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: SgpFieldColors.cautionOrange.withValues(alpha: 0.95),
+                  height: 1.3,
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HierarchyChip extends StatelessWidget {
+  const _HierarchyChip({required this.node});
+
+  final LegalHierarchyNode node;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = SgpLegalHierarchyChainBar._levelColor(node.level);
+    final title = node.title.length > 12 ? '${node.title.substring(0, 12)}…' : node.title;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        'LV${node.level.value} $title',
+        style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w500),
+      ),
     );
   }
 }
