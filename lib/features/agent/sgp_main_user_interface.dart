@@ -90,10 +90,14 @@ class SgpQuantumComparisonPanel extends StatelessWidget {
     super.key,
     required this.comparison,
     this.onPerspectiveTap,
+    this.showPrecedentGuides = false,
   });
 
   final SgpQuantumLegalComparison comparison;
   final void Function(LegalPerspective perspective)? onPerspectiveTap;
+
+  /// CoT 추론 후 각 카드 하단 [핵심 판례 가이드] 표시.
+  final bool showPrecedentGuides;
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +151,7 @@ class SgpQuantumComparisonPanel extends StatelessWidget {
                 Expanded(child: _PerspectiveCard(
                   perspective: cards[i],
                   urgency: comparison.urgencyLevel,
+                  showPrecedentGuide: showPrecedentGuides,
                   onTap: onPerspectiveTap != null ? () => onPerspectiveTap!(cards[i]) : null,
                 )),
               ],
@@ -162,11 +167,13 @@ class _PerspectiveCard extends StatelessWidget {
   const _PerspectiveCard({
     required this.perspective,
     required this.urgency,
+    this.showPrecedentGuide = false,
     this.onTap,
   });
 
   final LegalPerspective perspective;
   final SgpUrgencyLevel urgency;
+  final bool showPrecedentGuide;
   final VoidCallback? onTap;
 
   @override
@@ -232,6 +239,46 @@ class _PerspectiveCard extends StatelessWidget {
                 Text(
                   perspective.condition!,
                   style: const TextStyle(fontSize: 9, color: SgpFieldColors.accentBlue, height: 1.3),
+                ),
+              ],
+              if (showPrecedentGuide &&
+                  perspective.precedentGuide != null &&
+                  perspective.precedentGuide!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: SgpFieldColors.accentBlue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: SgpFieldColors.accentBlue.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '💡 핵심 판례 가이드',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: SgpFieldColors.accentBlue,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        perspective.precedentGuide!,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: SgpFieldColors.textPrimary,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],

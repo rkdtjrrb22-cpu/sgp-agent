@@ -10,6 +10,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import 'sgp_legal_compliance.dart';
+
 /// 사법부 트렌드 레코드.
 class CourtPrecedentTrend {
   const CourtPrecedentTrend({
@@ -80,23 +82,26 @@ class SgpCourtPrecedentsOta {
       final dir = await getApplicationDocumentsDirectory();
       final localFile = File('${dir.path}/court_precedents_patch.json');
 
-      try {
-        final response = await http
-            .get(Uri.parse(remotePatchUrl))
-            .timeout(const Duration(seconds: 8));
-        if (response.statusCode == 200) {
-          final decoded = jsonDecode(response.body);
-          if (decoded is List && decoded.isNotEmpty) {
-            await localFile.writeAsString(response.body);
-            _trends = decoded
-                .map((e) => CourtPrecedentTrend.fromJson(e as Map<String, dynamic>))
-                .toList();
-            _lastRefreshStatus = 'OTA 패치 적용 (${_trends.length}건)';
-            return;
+      // 보안업무규정·공급망 방어: 공식 배포 채널 승인 전 원격 패치 비활성.
+      if (kEnableRemoteOta) {
+        try {
+          final response = await http
+              .get(Uri.parse(remotePatchUrl))
+              .timeout(const Duration(seconds: 8));
+          if (response.statusCode == 200) {
+            final decoded = jsonDecode(response.body);
+            if (decoded is List && decoded.isNotEmpty) {
+              await localFile.writeAsString(response.body);
+              _trends = decoded
+                  .map((e) => CourtPrecedentTrend.fromJson(e as Map<String, dynamic>))
+                  .toList();
+              _lastRefreshStatus = 'OTA 패치 적용 (${_trends.length}건)';
+              return;
+            }
           }
+        } catch (_) {
+          // 네트워크 불가 — 로컬·자산 유지
         }
-      } catch (_) {
-        // 네트워크 불가 — 로컬·자산 유지
       }
 
       if (await localFile.exists()) {

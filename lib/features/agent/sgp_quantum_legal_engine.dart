@@ -27,6 +27,9 @@ enum IncidentType {
   domesticViolence,
   stalking,
   mutualCombat,
+  trafficIncident,
+  roadOccupancy,
+  civilDispute,
 }
 
 extension IncidentTypeLabel on IncidentType {
@@ -36,6 +39,21 @@ extension IncidentTypeLabel on IncidentType {
         IncidentType.domesticViolence => 'domestic_violence',
         IncidentType.stalking => 'stalking',
         IncidentType.mutualCombat => 'mutual_combat',
+        IncidentType.trafficIncident => 'traffic_incident',
+        IncidentType.roadOccupancy => 'road_occupancy',
+        IncidentType.civilDispute => 'civil_dispute',
+      };
+
+  /// 보고서·UI 표기용 한글 명칭.
+  String get displayLabel => switch (this) {
+        IncidentType.general => '일반 형사 사건',
+        IncidentType.dogBiteIncident => '반려견·맹견 교상 사고',
+        IncidentType.domesticViolence => '가정폭력',
+        IncidentType.stalking => '스토킹',
+        IncidentType.mutualCombat => '쌍방 폭행',
+        IncidentType.trafficIncident => '교통사고·도로교통법 위반',
+        IncidentType.roadOccupancy => '도로 점유·도로법 위반',
+        IncidentType.civilDispute => '민사 분쟁 연계',
       };
 }
 
@@ -50,6 +68,7 @@ class LegalPerspective {
     this.risk,
     this.condition,
     this.recommended = false,
+    this.precedentGuide,
   });
 
   final String id;
@@ -61,6 +80,9 @@ class LegalPerspective {
   final String? condition;
   final bool recommended;
 
+  /// CoT 추론 후 카드 하단 [핵심 판례 가이드] 텍스트.
+  final String? precedentGuide;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'kind': kind,
@@ -70,6 +92,7 @@ class LegalPerspective {
         'risk': risk,
         'condition': condition,
         'recommended': recommended,
+        'precedentGuide': precedentGuide,
       };
 
   factory LegalPerspective.fromJson(Map<String, dynamic> json) {
@@ -82,6 +105,7 @@ class LegalPerspective {
       risk: json['risk'] as String?,
       condition: json['condition'] as String?,
       recommended: json['recommended'] as bool? ?? false,
+      precedentGuide: json['precedentGuide'] as String?,
     );
   }
 }
@@ -159,6 +183,15 @@ class SgpQuantumLegalEngine {
   static final _stalkKw = RegExp(r'(스토킹|따라|잠복|감시|연락)');
   static final _mutualKw = RegExp(r'(쌍방|서로|맞붙)');
   static final _noLeashKw = RegExp(r'(목줄\s*없|미착용|풀어놓|입마개\s*없)');
+  static final _trafficKw = RegExp(
+    r'(교통|신호|음주운전|운전|과속|신호위반|추돌|차량|교차로|횡단보도|적색|녹색|도로교통)',
+  );
+  static final _roadKw = RegExp(
+    r'(도로법|불법\s*점용|도로\s*침범|공작물|공사\s*장|점유|도로\s*점유)',
+  );
+  static final _civilKw = RegExp(
+    r'(손해배상|가압류|민사|소송|지급명령|조정|내용증명|민사소송)',
+  );
 
   static SgpQuantumLegalComparison analyze({
     required String rawText,
@@ -220,6 +253,9 @@ class SgpQuantumLegalEngine {
 
   static IncidentType _detectIncident(String text, LawCheckList checklist) {
     if (_dogKw.hasMatch(text)) return IncidentType.dogBiteIncident;
+    if (_trafficKw.hasMatch(text)) return IncidentType.trafficIncident;
+    if (_roadKw.hasMatch(text)) return IncidentType.roadOccupancy;
+    if (_civilKw.hasMatch(text)) return IncidentType.civilDispute;
     if (_stalkKw.hasMatch(text)) return IncidentType.stalking;
     if (checklist.isDomesticViolence || _dvKw.hasMatch(text)) {
       return IncidentType.domesticViolence;
@@ -247,6 +283,8 @@ class SgpQuantumLegalEngine {
             attribute: '반의사불벌죄 (피해자 처벌불원 시 공소권 없음)',
             weightScore: safetyViolation ? 0.42 : 0.55,
             risk: '피의자 합의 종용으로 인한 피해자 2차 피해 우려',
+            precedentGuide:
+                '피해자의 처벌불원의사 확인 시 반의사불벌죄 원칙에 의거 공소권 없음 처분 경로 확인.',
           ),
           LegalPerspective(
             id: 'perspective_B_special',
@@ -255,6 +293,8 @@ class SgpQuantumLegalEngine {
             attribute: '비(非)반의사불벌죄 (합의 여부 불문 처벌)',
             weightScore: safetyViolation ? 0.88 : 0.62,
             condition: '목줄·입마개 등 법정 안전조치 미이행 요건 충족 시 즉시 트리거',
+            precedentGuide:
+                '대법원 20XX도XXXX: 맹견 목줄 미착용 상태의 주거지 이탈은 소유자의 관리의무 위반 기수 인정.',
           ),
           LegalPerspective(
             id: 'perspective_C_civil',
@@ -309,6 +349,8 @@ class SgpQuantumLegalEngine {
             attribute: '쌍방 과잉 입건 위험',
             weightScore: 0.40,
             risk: '기계적 쌍방 처벌 시비',
+            precedentGuide:
+                '대법원: 선제 공격·흉기 주도권·침해의 현재성 요건으로 실질 가해자 구분.',
           ),
           LegalPerspective(
             id: 'perspective_B_special',
@@ -317,6 +359,81 @@ class SgpQuantumLegalEngine {
             attribute: '선제 공격·흉기 주도권으로 실질 가해자 구분',
             weightScore: 0.72,
             condition: trends.any((t) => t.id.contains('self_defense')) ? '정당방위 완화 추세 반영' : null,
+            precedentGuide:
+                '정당방위 — 부당한 침해의 현재성·상당성·방어 의사를 순차 검토.',
+          ),
+        ];
+      case IncidentType.trafficIncident:
+        return [
+          LegalPerspective(
+            id: 'perspective_A_criminal',
+            kind: 'criminal',
+            law: '도로교통법 (음주운전·신호위반 등)',
+            attribute: '행정·형사 병행 — 면허 취소·벌금·구속영장',
+            weightScore: RegExp(r'(음주|만취|혈중)').hasMatch(text) ? 0.85 : 0.62,
+            precedentGuide:
+                '대법원: 음주운전 혈중알코올 0.08% 이상 시 형사 처벌·면허 취소 병행.',
+          ),
+          LegalPerspective(
+            id: 'perspective_B_special',
+            kind: 'special',
+            law: '특정범죄가중처벌법 (어린이·보호구역)',
+            attribute: '어린이 보호구역·스쿨존 가중처벌 검토',
+            weightScore: RegExp(r'(스쿨존|어린이|보호구역)').hasMatch(text) ? 0.78 : 0.45,
+            condition: '보호구역 내 사고 시 가중 요건 확인',
+            precedentGuide:
+                '어린이 보호구역 내 사고 — 특가법 가중·현장 CCTV·블랙박스 확보.',
+          ),
+          LegalPerspective(
+            id: 'perspective_C_civil',
+            kind: 'civil',
+            law: '민법 제750조 (불법행위 손해배상)',
+            attribute: '피해자 치료비·휴업손해·위자료 청구',
+            weightScore: 0.38,
+            precedentGuide:
+                '교통사고 — 보험사·과실비율·합의 절차 병행 안내.',
+          ),
+        ];
+      case IncidentType.roadOccupancy:
+        return [
+          LegalPerspective(
+            id: 'perspective_A_admin',
+            kind: 'administrative',
+            law: '도로법 제61조·제44조 (도로 점유·공작물)',
+            attribute: '불법 점용·공작물 설치 — 행정처분·원상회복',
+            weightScore: 0.72,
+            precedentGuide:
+                '도로법: 허가 없는 점유·공작물 설치 시 시·군·구청 이행강제금·원상회복.',
+          ),
+          LegalPerspective(
+            id: 'perspective_B_criminal',
+            kind: 'criminal',
+            law: '형법 제347조 (공무방해) 등',
+            attribute: '공무집행 방해·폭력 수반 시 형사 입건',
+            weightScore: RegExp(r'(폭력|공무|방해)').hasMatch(text) ? 0.68 : 0.35,
+            precedentGuide:
+                '원상회복 명령 불이행 + 폭력 — 공무방해·특수폭행 경로 검토.',
+          ),
+        ];
+      case IncidentType.civilDispute:
+        return [
+          LegalPerspective(
+            id: 'perspective_A_civil',
+            kind: 'civil',
+            law: '민사소송법 (지급명령·가압류·가처분)',
+            attribute: '피해자 권리구제 — 민사 절차 우선 안내',
+            weightScore: 0.70,
+            precedentGuide:
+                '민사소송법: 손해배상 청구·가압류·가처분으로 재산 보전 절차 안내.',
+          ),
+          LegalPerspective(
+            id: 'perspective_B_criminal',
+            kind: 'criminal',
+            law: '형법 (사기·횡령·폭행 등)',
+            attribute: '범죄 성립 시 형사 경로 병행',
+            weightScore: RegExp(r'(사기|횡령|폭행|협박)').hasMatch(text) ? 0.65 : 0.40,
+            precedentGuide:
+                '형사·민사 병행 가능 — 고소장 접수·증거 보전 동시 검토.',
           ),
         ];
       case IncidentType.general:
@@ -414,6 +531,15 @@ class SgpQuantumLegalEngine {
       }
       return '견주·견 분리 후 상해 정도·안전조치 이행 여부 기록';
     }
+    if (incident == IncidentType.trafficIncident) {
+      return '교통사고 — 도로교통법·특가법·민사 손해배상 경로 동시 검토';
+    }
+    if (incident == IncidentType.roadOccupancy) {
+      return '도로 점유·공작물 — 도로법 행정처분 + 형사 병행 여부 확인';
+    }
+    if (incident == IncidentType.civilDispute) {
+      return '민사 분쟁 — 민사소송법 절차 안내 + 형사 성립 시 병행';
+    }
     if (recommended != null) {
       return '권장 경로: ${recommended.law} — ${recommended.attribute}';
     }
@@ -430,6 +556,9 @@ class SgpQuantumLegalEngine {
       IncidentType.domesticViolence => '가정폭력 — 형법 vs 가정폭력처벌법 경합',
       IncidentType.stalking => '스토킹 — 협박죄 vs 스토킹처벌법',
       IncidentType.mutualCombat => '쌍방 폭행 — 정당방위·선제공격 판례 대조',
+      IncidentType.trafficIncident => '교통사고 — 도로교통법·특가법·민사 손해배상',
+      IncidentType.roadOccupancy => '도로 점유 — 도로법 행정처분 vs 형사',
+      IncidentType.civilDispute => '민사 분쟁 — 민사소송법 vs 형사 병행',
       IncidentType.general => '일반 형사 — 기본형법·특별법·면책 조항 비교',
     };
     if (top == null) return base;
@@ -450,6 +579,7 @@ extension _LegalPerspectiveCopy on LegalPerspective {
     String? risk,
     String? condition,
     bool? recommended,
+    String? precedentGuide,
   }) {
     return LegalPerspective(
       id: id ?? this.id,
@@ -460,6 +590,7 @@ extension _LegalPerspectiveCopy on LegalPerspective {
       risk: risk ?? this.risk,
       condition: condition ?? this.condition,
       recommended: recommended ?? this.recommended,
+      precedentGuide: precedentGuide ?? this.precedentGuide,
     );
   }
 }

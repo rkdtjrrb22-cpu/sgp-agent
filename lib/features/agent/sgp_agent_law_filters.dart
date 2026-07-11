@@ -25,6 +25,7 @@ enum LawChecklistField {
   relational,
   intoxication,
   fleeing,
+  seizureConstraint,
 }
 
 /// 트리거된 필터 1건.
@@ -126,6 +127,20 @@ const List<LawFilterDefinition> kLawFilterDictionary = [
     },
     checklistField: LawChecklistField.fleeing,
   ),
+  LawFilterDefinition(
+    filterName: 'seizure_coercion_constraint',
+    displayName: '압수·강제수사 제한 요건 필터 (10월 개정)',
+    triggerKeywords: [
+      '압수', '수색', '영장', '강제수사', '보완지시', '디지털', '휴대폰', '압수수색',
+      '임의제출', '동의', '증거', '체포', '구속',
+    ],
+    mappingLaw: {
+      'primary': '형사소송법 제106조·제216조 (압수·수색) + 2025.10 개정 강제수사 요건',
+      'procedure_note':
+          '보완지시 삭제·강제수사 완결성 — 영장 요건·디지털 포렌식·동의서 확보 여부 재검토.',
+    },
+    checklistField: LawChecklistField.seizureConstraint,
+  ),
 ];
 
 /// 텍스트 전처리 후 키워드 매칭 — 1단계 파이프라인.
@@ -143,6 +158,7 @@ RuleMatchResult matchLawFilters(String rawText) {
   var relational = false;
   var intoxication = false;
   var fleeing = false;
+  var seizureConstraint = false;
 
   for (final def in kLawFilterDictionary) {
     final hits = <String>[];
@@ -163,6 +179,8 @@ RuleMatchResult matchLawFilters(String rawText) {
         intoxication = true;
       case LawChecklistField.fleeing:
         fleeing = true;
+      case LawChecklistField.seizureConstraint:
+        seizureConstraint = true;
     }
   }
 
@@ -173,6 +191,7 @@ RuleMatchResult matchLawFilters(String rawText) {
       isDomesticViolence: relational,
       isIntoxicated: intoxication,
       isFleeing: fleeing,
+      isSeizureConstraintReviewed: seizureConstraint,
     ),
   );
 }
@@ -184,6 +203,8 @@ LawCheckList mergeChecklists(LawCheckList manual, LawCheckList suggested) {
     isDomesticViolence: manual.isDomesticViolence || suggested.isDomesticViolence,
     isIntoxicated: manual.isIntoxicated || suggested.isIntoxicated,
     isFleeing: manual.isFleeing || suggested.isFleeing,
+    isSeizureConstraintReviewed:
+        manual.isSeizureConstraintReviewed || suggested.isSeizureConstraintReviewed,
   );
 }
 

@@ -22,6 +22,8 @@ import 'sgp_quantum_legal_engine.dart';
 import 'sgp_court_precedents_ota.dart';
 import 'sgp_main_user_interface.dart';
 import 'sgp_app_theme.dart';
+import 'sgp_voice_legal_binder.dart';
+import 'sgp_legal_compliance.dart';
 
 /// SgpAgentHome — 수사관 진입점. 진입 시 sLLM Lazy Load, 이탈 시 dispose.
 class SgpAgentHome extends StatelessWidget {
@@ -46,6 +48,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   final _sttEngine = SgpSttEngine();
   final _scrollController = ScrollController();
   final _storageSectionKey = GlobalKey();
+  final _sttFieldKey = GlobalKey();
+  final _sttFocusNode = FocusNode();
 
   LawCheckList _checklist = const LawCheckList();
   RuleMatchResult _ruleResult = const RuleMatchResult(
@@ -69,6 +73,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   SgpProcedureTimeline? _procedureTimeline;
   SgpQuantumLegalComparison? _quantumComparison;
   String? _otaStatus;
+  VoiceLegalMatchResult _voiceLegalMatch = VoiceLegalMatchResult.empty;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -78,11 +83,27 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   void initState() {
     super.initState();
     _rawTextController.addListener(_onRawTextChanged);
+    _sttFocusNode.addListener(_onSttFocusChanged);
     _initEngine();
     _loadPrecedentDictionary();
     _initCourtPrecedentsOta();
     _initStt();
     _refreshSavedRecords();
+  }
+
+  void _onSttFocusChanged() {
+    if (!_sttFocusNode.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _sttFieldKey.currentContext;
+      if (ctx != null && mounted) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOut,
+          alignment: 0.25,
+        );
+      }
+    });
   }
 
   Future<void> _initStt() async {
@@ -138,13 +159,35 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   }
 
   void _applyRuleMapping() {
-    final rules = matchLawFilters(_rawTextController.text);
+    final text = _rawTextController.text;
+    final rules = matchLawFilters(text);
+    final voice = SgpVoiceLegalBinder.analyze(text);
     if (!mounted) return;
     setState(() {
       _ruleResult = rules;
-      _checklist = mergeChecklists(_checklist, rules.suggestedChecklist);
+      var merged = mergeChecklists(_checklist, rules.suggestedChecklist);
+      if (voice.autoCheckFields.contains(LawChecklistField.fleeing)) {
+        merged = merged.copyWith(isFleeing: true);
+      }
+      _checklist = merged;
+      _voiceLegalMatch = voice;
     });
     _refreshQuantumAnalysis();
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    if (text == null || text.isEmpty) {
+      _showSnack('클립보드가 비어 있습니다.');
+      return;
+    }
+    final existing = _rawTextController.text.trim();
+    _rawTextController.text = existing.isEmpty ? text : '$existing\n$text';
+    _applyRuleMapping();
+    if (mounted) {
+      _showSnack('112 지령문 붙여넣기 완료');
+    }
   }
 
   Future<void> _refreshSavedRecords() async {
@@ -292,6 +335,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
 
   Future<void> _startSttCapture() async {
     if (_sttBusy) return;
+
+    // 통비법 방어 게이트 — 세션 최초 사용 시 준수 고지 확인.
+    final complianceOk = await SgpSttComplianceGate.ensureAcknowledged(context);
+    if (!complianceOk || !mounted) return;
+
     setState(() {
       _sttBusy = true;
       _sttState = SttSessionState.listening;
@@ -358,11 +406,13 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   @override
   void dispose() {
     _ruleDebounce?.cancel();
-    _engine.dispose();
-    _sttEngine.dispose();
     _rawTextController.removeListener(_onRawTextChanged);
+    _sttFocusNode.removeListener(_onSttFocusChanged);
     _rawTextController.dispose();
     _scrollController.dispose();
+    _sttFocusNode.dispose();
+    _engine.dispose();
+    _sttEngine.dispose();
     super.dispose();
   }
 
@@ -683,7 +733,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                 '흉기·위험물: ${record.checklist.isWeaponUsed ? "Y" : "N"}\n'
                     '가정폭력·스토킹: ${record.checklist.isDomesticViolence ? "Y" : "N"}\n'
                     '자의적 음주·약물: ${record.checklist.isIntoxicated ? "Y" : "N"}\n'
-                    '도주·신분확인 거부: ${record.checklist.isFleeing ? "Y" : "N"}',
+                    '도주·신분확인 거부: ${record.checklist.isFleeing ? "Y" : "N"}\n'
+                    '압수·강제수사 검토: ${record.checklist.isSeizureConstraintReviewed ? "Y" : "N"}',
               ),
               const SizedBox(height: 8),
               Row(
@@ -820,6 +871,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: SgpFieldColors.background,
       appBar: AppBar(
         title: const Text('SGP-Agent'),
@@ -840,6 +892,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
           Expanded(
             child: SingleChildScrollView(
               controller: _scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -868,6 +921,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                     SgpFieldCard(
                       child: SgpQuantumComparisonPanel(
                         comparison: _quantumComparison!,
+                        showPrecedentGuides:
+                            _generatedOutput != null || _advancedAnalysis != null,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -896,7 +951,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                   ],
                   const SizedBox(height: 16),
                   _buildStorageSection(),
-                  const SizedBox(height: 100),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
@@ -914,16 +969,9 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                 onGenerateReport: _onGenerateLegalReport,
               ),
             ),
-          _buildLiabilityPanel(),
-          if (_canGenerateReport)
-            SgpLifecycleFooter(
-              selfJudgmentAccepted: _selfJudgmentAccepted,
-              onSelfJudgmentChanged: (v) => setState(() => _selfJudgmentAccepted = v),
-              canGenerateReport: _canGenerateReport,
-              onGenerateReport: _onGenerateLegalReport,
-            ),
         ],
       ),
+      bottomNavigationBar: _buildStickyBottomBar(),
     );
   }
 
@@ -963,37 +1011,55 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+              IconButton(
+                tooltip: '112 지령문 클립보드 붙여넣기',
+                icon: Icon(Icons.content_paste_outlined, color: accent, size: 22),
+                onPressed: _pasteFromClipboard,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: _rawTextController,
-            maxLines: 6,
-            minLines: 4,
-            style: const TextStyle(
-              color: SgpAppTheme.textPrimary,
-              fontSize: 14,
-              height: 1.45,
-            ),
-            cursorColor: SgpAppTheme.primaryLight,
-            decoration: InputDecoration(
-              hintText: '현장 무전·진술 텍스트를 입력하거나 마이크로 수신…',
-              hintStyle: TextStyle(color: SgpAppTheme.textMuted),
-              filled: true,
-              fillColor: SgpAppTheme.surfaceHigh,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: SgpCotColors.border),
+          KeyedSubtree(
+            key: _sttFieldKey,
+            child: TextField(
+              controller: _rawTextController,
+              focusNode: _sttFocusNode,
+              maxLines: 6,
+              minLines: 4,
+              textInputAction: TextInputAction.newline,
+              style: const TextStyle(
+                color: SgpAppTheme.textPrimary,
+                fontSize: 14,
+                height: 1.45,
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: accent.withValues(alpha: 0.35)),
+              cursorColor: SgpAppTheme.primaryLight,
+              decoration: InputDecoration(
+                hintText: '현장 무전·진술 텍스트를 입력하거나 마이크로 수신…',
+                hintStyle: TextStyle(color: SgpAppTheme.textMuted),
+                filled: true,
+                fillColor: SgpAppTheme.surfaceHigh,
+                suffixIcon: IconButton(
+                  tooltip: '클립보드 붙여넣기',
+                  icon: Icon(Icons.content_paste, color: accent.withValues(alpha: 0.85)),
+                  onPressed: _pasteFromClipboard,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: SgpCotColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: accent.withValues(alpha: 0.35)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: accent, width: 1.5),
+                ),
+                isDense: true,
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: accent, width: 1.5),
-              ),
-              isDense: true,
             ),
           ),
           const SizedBox(height: 10),
@@ -1053,16 +1119,37 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '법리 변수 (4대 체크)',
+          '법리 변수 (필수 체크)',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
         ),
+        if (_voiceLegalMatch.mirandaAdvised) ...[
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: SgpAppTheme.success.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: SgpAppTheme.success.withValues(alpha: 0.45)),
+            ),
+            child: Text(
+              'STT: 미란다·묵비권 고지 감지 (${_voiceLegalMatch.matchedKeywords.join(", ")})',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: SgpAppTheme.success,
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         _checkCard(
           title: '흉기·위험물 사용',
           subtitle: '특수죄 구성요건 · 반의사불벌죄 배제 가이드',
           value: _checklist.isWeaponUsed,
+          field: LawChecklistField.weapon,
           suggestedByRule: isFieldSuggestedByRule(_ruleResult, LawChecklistField.weapon),
           onChanged: (v) => setState(
             () => _checklist = _checklist.copyWith(isWeaponUsed: v),
@@ -1073,6 +1160,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
           title: '가정폭력·스토킹 관계',
           subtitle: '스토킹/가정폭력처벌법 관계성 필터',
           value: _checklist.isDomesticViolence,
+          field: LawChecklistField.relational,
           suggestedByRule: isFieldSuggestedByRule(_ruleResult, LawChecklistField.relational),
           onChanged: (v) => setState(
             () => _checklist = _checklist.copyWith(isDomesticViolence: v),
@@ -1083,6 +1171,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
           title: '자의적 음주·약물',
           subtitle: '형법 제10조 3항 자의행위 매핑',
           value: _checklist.isIntoxicated,
+          field: LawChecklistField.intoxication,
           suggestedByRule: isFieldSuggestedByRule(_ruleResult, LawChecklistField.intoxication),
           onChanged: (v) => setState(
             () => _checklist = _checklist.copyWith(isIntoxicated: v),
@@ -1091,13 +1180,26 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
         ),
         _checkCard(
           title: '도주·신분확인 거부',
-          subtitle: '형소법 제211조 체포 필요성',
+          subtitle: '형소법 제211조 체포 필요성 · 미란다 고지 연동',
           value: _checklist.isFleeing,
+          field: LawChecklistField.fleeing,
           suggestedByRule: isFieldSuggestedByRule(_ruleResult, LawChecklistField.fleeing),
           onChanged: (v) => setState(
             () => _checklist = _checklist.copyWith(isFleeing: v),
           ),
           icon: Icons.directions_run,
+        ),
+        _checkCard(
+          title: '압수·강제수사 제한 요건 검토',
+          subtitle: '10월 개정 형사법 — 영장·동의서·디지털 포렌식 완결성',
+          value: _checklist.isSeizureConstraintReviewed,
+          field: LawChecklistField.seizureConstraint,
+          suggestedByRule:
+              isFieldSuggestedByRule(_ruleResult, LawChecklistField.seizureConstraint),
+          onChanged: (v) => setState(
+            () => _checklist = _checklist.copyWith(isSeizureConstraintReviewed: v),
+          ),
+          icon: Icons.policy_outlined,
         ),
       ],
     );
@@ -1213,53 +1315,105 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     required bool suggestedByRule,
     required ValueChanged<bool> onChanged,
     required IconData icon,
+    LawChecklistField? field,
   }) {
+    final voiceHighlighted =
+        field != null && _voiceLegalMatch.highlightFields.contains(field);
+    final borderColor = voiceHighlighted
+        ? SgpAppTheme.success
+        : suggestedByRule
+            ? SgpAppTheme.warning.withValues(alpha: 0.6)
+            : SgpAppTheme.border;
+    final borderWidth = voiceHighlighted || suggestedByRule ? 1.5 : 1.0;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: suggestedByRule
-            ? BorderSide(color: SgpAppTheme.warning.withValues(alpha: 0.6), width: 1.5)
-            : BorderSide(color: SgpAppTheme.border),
+        side: BorderSide(color: borderColor, width: borderWidth),
       ),
-      color: suggestedByRule
-          ? SgpAppTheme.warning.withValues(alpha: 0.08)
-          : SgpAppTheme.surface,
-      child: CheckboxListTile(
-        value: value,
-        onChanged: (v) => onChanged(v ?? false),
-        secondary: Icon(icon, color: SgpAppTheme.primaryLight),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      color: voiceHighlighted
+          ? SgpAppTheme.success.withValues(alpha: 0.08)
+          : suggestedByRule
+              ? SgpAppTheme.warning.withValues(alpha: 0.08)
+              : SgpAppTheme.surface,
+      clipBehavior: Clip.antiAlias,
+      child: GestureDetector(
+        onTap: () => onChanged(!value),
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: value,
+                  onChanged: (v) => onChanged(v ?? false),
+                  activeColor: voiceHighlighted ? SgpAppTheme.success : SgpAppTheme.primary,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          if (voiceHighlighted)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              margin: const EdgeInsets.only(right: 4),
+                              decoration: BoxDecoration(
+                                color: SgpAppTheme.success.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'STT',
+                                style: TextStyle(
+                                  color: SgpAppTheme.success,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          if (suggestedByRule)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: SgpAppTheme.warning,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'AI 추천',
+                                style: TextStyle(
+                                  color: SgpAppTheme.textOnAccent,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      ...splitReadableSentences(subtitle)
+                          .map((line) => Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  line,
+                                  style: const TextStyle(fontSize: 12, height: 1.35),
+                                ),
+                              ))
+                          .toList(),
+                    ],
+                  ),
+                ),
+                Icon(icon, color: SgpAppTheme.primaryLight, size: 22),
+              ],
             ),
-            if (suggestedByRule)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: SgpAppTheme.warning,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'AI 추천',
-                  style: TextStyle(color: SgpAppTheme.textOnAccent, fontSize: 10),
-                ),
-              ),
-          ],
+          ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: splitReadableSentences(subtitle)
-              .map((line) => Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(line, style: const TextStyle(fontSize: 12, height: 1.35)),
-                  ))
-              .toList(),
-        ),
-        controlAffinity: ListTileControlAffinity.leading,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      ),
     );
   }
 
@@ -1655,67 +1809,110 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     );
   }
 
-  Widget _buildLiabilityPanel() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: SgpAppTheme.surfaceHigh,
-        border: Border(
-          top: BorderSide(color: SgpAppTheme.error.withValues(alpha: 0.5), width: 2),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, -3),
+  Widget _buildStickyBottomBar() {
+    return Material(
+      elevation: 8,
+      color: SgpAppTheme.surfaceHigh,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: SgpAppTheme.error.withValues(alpha: 0.5), width: 2),
+            ),
           ),
-        ],
-      ),
-      padding: EdgeInsets.fromLTRB(
-        16,
-        12,
-        16,
-        12 + MediaQuery.of(context).padding.bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.gavel_outlined, color: SgpAppTheme.error, size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _liabilityNotice,
-                  style: const TextStyle(
-                    color: SgpAppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.gavel_outlined, color: SgpAppTheme.error, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _liabilityNotice,
+                      style: const TextStyle(
+                        color: SgpAppTheme.textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => setState(
+                  () => _selfJudgmentAccepted = !_selfJudgmentAccepted,
+                ),
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _selfJudgmentAccepted,
+                      onChanged: (v) => setState(
+                        () => _selfJudgmentAccepted = v ?? false,
+                      ),
+                      activeColor: SgpAppTheme.primary,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 10),
+                        child: Text(
+                          '위 고지를 확인했으며, 본인 자기판단으로 확정합니다.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: SgpAppTheme.textPrimary,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 6),
+              FilledButton(
+                onPressed: _selfJudgmentAccepted ? _confirmAndSave : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: SgpAppTheme.primary,
+                  disabledBackgroundColor: SgpAppTheme.surfaceOverlay,
+                  disabledForegroundColor: SgpAppTheme.textMuted,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  '자기판단 선택 및 서류 확정',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+              if (_canGenerateReport) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _selfJudgmentAccepted ? _onGenerateLegalReport : null,
+                  icon: const Icon(Icons.article_outlined, size: 20),
+                  label: const Text('판례 인용 초동조치 보고서 자동 생성'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: SgpAppTheme.accent,
+                    foregroundColor: SgpAppTheme.textOnAccent,
+                    disabledBackgroundColor: SgpAppTheme.surfaceOverlay,
+                    disabledForegroundColor: SgpAppTheme.textMuted,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 10),
-          FilledButton(
-            onPressed: _selfJudgmentAccepted ? _confirmAndSave : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: SgpAppTheme.primary,
-              disabledBackgroundColor: SgpAppTheme.surfaceOverlay,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              '자기판단 선택 및 서류 확정',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

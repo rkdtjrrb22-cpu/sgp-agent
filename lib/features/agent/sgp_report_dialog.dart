@@ -13,7 +13,7 @@ Future<void> showLegalReportDialog(
   BuildContext context, {
   required SgpLegalReport report,
 }) async {
-  await Clipboard.setData(ClipboardData(text: report.plainText));
+  await Clipboard.setData(ClipboardData(text: report.combinedPlainText));
 
   if (!context.mounted) return;
 
@@ -190,14 +190,40 @@ class _LegalReportDialogState extends State<_LegalReportDialog>
     }
   }
 
+  /// 보안업무규정 방어 게이트 — 수사자료 외부 전송 전 수사관 확인 필수.
   Future<void> _shareReport(BuildContext context) async {
     final box = context.findRenderObject() as RenderBox?;
     final origin = box != null
         ? box.localToGlobal(Offset.zero) & box.size
         : null;
 
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.security, size: 32),
+        title: const Text('수사자료 외부 전송 확인'),
+        content: const Text(
+          '본 서류에는 수사 관련 정보가 포함되어 있습니다.\n\n'
+          '보안업무규정 및 개인정보 보호 원칙에 따라 '
+          '승인된 업무 채널(폴넷 메신저 등)로만 전송하십시오.\n\n'
+          '외부 메신저·SNS 전송 시 발생하는 책임은 전송자 본인에게 있습니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('확인 후 전송'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
     await Share.share(
-      widget.report.plainText,
+      widget.report.combinedPlainText,
       subject: 'SGP-Agent 사법 서류 초안',
       sharePositionOrigin: origin,
     );

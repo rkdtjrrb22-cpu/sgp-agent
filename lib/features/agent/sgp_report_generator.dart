@@ -2,6 +2,7 @@
 library;
 
 import 'sgp_agent_core.dart';
+import 'sgp_court_precedents_ota.dart';
 import 'sgp_physical_force_guide.dart';
 import 'sgp_precedent_dictionary.dart';
 import 'sgp_procedure_timeline.dart';
@@ -70,11 +71,22 @@ class SgpLegalReport {
     this.officialDocuments,
   });
 
+  /// 초동조치 보고서 본문 (공식 서류 미포함 — 팝업 탭 간 중복 방지).
   final String markdown;
+
+  /// [markdown]의 플레인 텍스트 버전.
   final String plainText;
+
   final List<String> citedPrecedentIds;
   final DateTime generatedAt;
   final SgpOfficialDocuments? officialDocuments;
+
+  /// 전체 공유용 — 초동조치 + 발생보고서 + 체포서 (각 1회씩만 포함).
+  String get combinedPlainText {
+    final docs = officialDocuments;
+    if (docs == null) return plainText;
+    return '$plainText\n\n${'=' * 40}\n\n${docs.combinedPlainText}';
+  }
 }
 
 /// 대법원 판례 인용 초동조치 보고서 합성기 (오프라인·경량 템플릿).
@@ -86,36 +98,39 @@ class SgpReportGenerator {
     final citedIds = precedents.map((p) => p.id).toList();
     final buf = StringBuffer();
 
+    // 본문 절에서 이미 인용한 판례는 요지 절에서 재반복하지 않는다.
+    final inlineCited = <String>{};
+
     buf.writeln('# SGP-Agent 사법 무결성 초동조치 보고서');
     buf.writeln();
     _section(buf, '1. 개요', _buildOverview(input));
-    _section(buf, '2. 가·피해자 분리 조치', _buildVictimSeparation(input, precedents));
-    _section(buf, '3. 물리력 대응', _buildPhysicalForce(input, precedents));
-    _section(buf, '4. 현장 채증 법적 고지', _buildEvidenceNotice(input, precedents));
+    _section(buf, '2. 가·피해자 분리 조치',
+        _buildVictimSeparation(input, precedents, inlineCited));
+    _section(buf, '3. 물리력 대응',
+        _buildPhysicalForce(input, precedents, inlineCited));
+    _section(buf, '4. 현장 채증 법적 고지',
+        _buildEvidenceNotice(input, precedents, inlineCited));
     _section(buf, '5. 신병 인계·구금', _buildCustodyHandover(input));
     if (input.advancedAnalysis != null) {
-      _section(buf, '6. 법리 분석 (SGP-Agent Pro)', _buildLegalAnalysis(input, precedents));
+      _section(buf, '6. 법리 분석 (SGP-Agent Pro)',
+          _buildLegalAnalysis(input, precedents, inlineCited));
     }
+    final remaining =
+        precedents.where((p) => !inlineCited.contains(p.id)).toList();
     if (input.quantumComparison != null) {
       _section(buf, '7. 양자적 법률 비교', _buildQuantumSection(input.quantumComparison!));
-      _section(buf, '8. 인용 대법원 판례 요지', _buildPrecedentBlock(precedents));
+      _section(buf, '8. 추가 인용 대법원 판례 요지', _buildPrecedentBlock(remaining));
       _section(buf, '9. 절차 이행 현황', _buildProcedureChecklist(input));
       _section(buf, '10. 수사관 확인', _buildOfficerConfirmation(input.generatedAt));
     } else {
-      _section(buf, '7. 인용 대법원 판례 요지', _buildPrecedentBlock(precedents));
+      _section(buf, '7. 추가 인용 대법원 판례 요지', _buildPrecedentBlock(remaining));
       _section(buf, '8. 절차 이행 현황', _buildProcedureChecklist(input));
       _section(buf, '9. 수사관 확인', _buildOfficerConfirmation(input.generatedAt));
     }
 
+    // 공식 서류는 markdown 본문에 이어붙이지 않는다 —
+    // 팝업 탭 2·3(발생보고서·체포서)과 탭 1의 내용 중복 방지.
     final officialDocs = SgpOfficialDocumentDrafts.generate(input);
-    buf.writeln();
-    buf.writeln('---');
-    buf.writeln();
-    buf.writeln(officialDocs.crimeIncidentReport);
-    buf.writeln();
-    buf.writeln('---');
-    buf.writeln();
-    buf.writeln(officialDocs.arrestWarrantDraft);
 
     final markdown = buf.toString().trim();
     return SgpLegalReport(
@@ -125,6 +140,15 @@ class SgpReportGenerator {
       generatedAt: input.generatedAt,
       officialDocuments: officialDocs,
     );
+  }
+
+  /// 판례를 본문에 1회만 인용 — 이미 인용된 판례는 null.
+  static String? _citeOnce(
+    PrecedentRef p,
+    Set<String> inlineCited,
+  ) {
+    if (!inlineCited.add(p.id)) return null;
+    return p.holding;
   }
 
   static List<PrecedentRef> _resolvePrecedents(SgpReportInput input) {
@@ -209,6 +233,7 @@ class SgpReportGenerator {
   static List<String> _buildVictimSeparation(
     SgpReportInput input,
     List<PrecedentRef> precedents,
+    Set<String> inlineCited,
   ) {
     final t = input.timeline;
     final lines = <String>[];
@@ -228,11 +253,15 @@ class SgpReportGenerator {
     final dv = precedents.where((p) => p.id == 'SC_dv_victim').toList();
     final mutual = precedents.where((p) => p.id == 'SC_mutual_combat').toList();
     if (input.checklist.isDomesticViolence && dv.isNotEmpty) {
-      lines.add('- **판례 인용**: ${dv.first.holding}');
+      final holding = _citeOnce(dv.first, inlineCited);
+      if (holding != null) lines.add('- **판례 인용**: $holding');
     }
     if (mutual.isNotEmpty) {
-      lines.add('- **판례 인용**: ${mutual.first.holding}');
-      lines.add('  → 쌍방 폭행 정황 시 선제 공격·흉기 주도권으로 실질 가해자를 구분하였음.');
+      final holding = _citeOnce(mutual.first, inlineCited);
+      if (holding != null) {
+        lines.add('- **판례 인용**: $holding');
+        lines.add('  → 쌍방 폭행 정황 시 선제 공격·흉기 주도권으로 실질 가해자를 구분하였음.');
+      }
     } else if (input.advancedAnalysis != null) {
       lines.add('- **분리 판단**: ${input.advancedAnalysis!.suspectVictimStatus}');
     }
@@ -242,6 +271,7 @@ class SgpReportGenerator {
   static List<String> _buildPhysicalForce(
     SgpReportInput input,
     List<PrecedentRef> precedents,
+    Set<String> inlineCited,
   ) {
     final t = input.timeline;
     final lines = <String>[];
@@ -274,10 +304,13 @@ class SgpReportGenerator {
 
     final selfDef = precedents.where((p) => p.id == 'SC_self_defense').toList();
     if (selfDef.isNotEmpty && (input.advancedAnalysis?.defenseActDetected ?? false)) {
-      lines.add('- **판례 인용 (정당방위)**: ${selfDef.first.holding}');
-      lines.add(
-        '  → 침해의 현재성·부당성·방어의사·상당성을 대조하여 물리력 행사 비례성을 검토함.',
-      );
+      final holding = _citeOnce(selfDef.first, inlineCited);
+      if (holding != null) {
+        lines.add('- **판례 인용 (정당방위)**: $holding');
+        lines.add(
+          '  → 침해의 현재성·부당성·방어의사·상당성을 대조하여 물리력 행사 비례성을 검토함.',
+        );
+      }
     }
     return lines;
   }
@@ -285,6 +318,7 @@ class SgpReportGenerator {
   static List<String> _buildEvidenceNotice(
     SgpReportInput input,
     List<PrecedentRef> precedents,
+    Set<String> inlineCited,
   ) {
     final t = input.timeline;
     final lines = <String>[
@@ -306,11 +340,15 @@ class SgpReportGenerator {
     final illegal = precedents.where((p) => p.id == 'SC_illegal_evidence').toList();
     final warrantless = precedents.where((p) => p.id == 'SC_warrantless_seizure').toList();
     if (illegal.isNotEmpty) {
-      lines.add('- **판례 인용 (위수증 방어)**: ${illegal.first.holding}');
-      lines.add('  → 채증 전 고지·바디캠 가동으로 적법절차 및 증거능력을 확보함.');
+      final holding = _citeOnce(illegal.first, inlineCited);
+      if (holding != null) {
+        lines.add('- **판례 인용 (위수증 방어)**: $holding');
+        lines.add('  → 채증 전 고지·바디캠 가동으로 적법절차 및 증거능력을 확보함.');
+      }
     }
     if (warrantless.isNotEmpty) {
-      lines.add('- **판례 인용**: ${warrantless.first.holding}');
+      final holding = _citeOnce(warrantless.first, inlineCited);
+      if (holding != null) lines.add('- **판례 인용**: $holding');
     }
     return lines;
   }
@@ -335,6 +373,7 @@ class SgpReportGenerator {
   static List<String> _buildLegalAnalysis(
     SgpReportInput input,
     List<PrecedentRef> precedents,
+    Set<String> inlineCited,
   ) {
     final adv = input.advancedAnalysis!;
     final lines = <String>[
@@ -349,14 +388,18 @@ class SgpReportGenerator {
     if (adv.preemptiveAttackDetected) {
       final p = precedents.where((e) => e.id == 'SC_preemptive_attack').toList();
       if (p.isNotEmpty) {
-        lines.add('- **판례 인용 (선제 공격)**: ${p.first.holding}');
+        final holding = _citeOnce(p.first, inlineCited);
+        if (holding != null) lines.add('- **판례 인용 (선제 공격)**: $holding');
       }
     }
 
     final intox = precedents.where((e) => e.id == 'SC_intox_voluntary').toList();
     if (input.checklist.isIntoxicated && intox.isNotEmpty) {
-      lines.add('- **판례 인용 (형법 제10조 3항)**: ${intox.first.holding}');
-      lines.add('  → 자의적 음주로 인한 심신미약 감경 주장 제한 가능성을 검토함.');
+      final holding = _citeOnce(intox.first, inlineCited);
+      if (holding != null) {
+        lines.add('- **판례 인용 (형법 제10조 3항)**: $holding');
+        lines.add('  → 자의적 음주로 인한 심신미약 감경 주장 제한 가능성을 검토함.');
+      }
     }
 
     if (adv.legalRisks.isNotEmpty) {
@@ -370,28 +413,44 @@ class SgpReportGenerator {
 
   static List<String> _buildQuantumSection(SgpQuantumLegalComparison q) {
     final lines = <String>[
-      '- **사건 유형**: ${q.incidentType.jsonKey}',
+      '- **사건 유형**: ${q.incidentType.displayLabel}',
       '- **요약**: ${q.summary}',
       '- **긴급도**: ${q.urgencyLevel.label}',
       '- **행동 지침**: ${q.actionGuidance}',
     ];
     for (final p in q.perspectives) {
       lines.add(
-        '- **${p.recommended ? "★ " : ""}${p.law}**: ${p.attribute} (점수 ${(p.weightScore * 100).round()}%)',
+        '- **${p.recommended ? "★ " : ""}${p.law}**: ${p.attribute} (가중치 ${(p.weightScore * 100).round()}%)',
       );
     }
-    if (q.appliedTrendIds.isNotEmpty) {
-      lines.add('- **적용 트렌드**: ${q.appliedTrendIds.join(", ")}');
+    final trendHoldings = _resolveTrendHoldings(q.appliedTrendIds);
+    if (trendHoldings.isNotEmpty) {
+      lines.add('- **반영된 최신 판례 경향**:');
+      for (final h in trendHoldings) {
+        lines.add('  - $h');
+      }
     }
     return lines;
   }
 
+  /// 트렌드 ID(영문 코드) → 한글 판례 요지. 미해석 ID는 표기하지 않는다.
+  static List<String> _resolveTrendHoldings(List<String> trendIds) {
+    if (trendIds.isEmpty) return const [];
+    final byId = {
+      for (final t in SgpCourtPrecedentsOta.instance.activeTrends) t.id: t,
+    };
+    return [
+      for (final id in trendIds)
+        if (byId[id] != null) byId[id]!.holding,
+    ];
+  }
+
   static List<String> _buildPrecedentBlock(List<PrecedentRef> precedents) {
     if (precedents.isEmpty) {
-      return ['- 현장 텍스트·체크리스트 기준 매칭 판례 없음 (수사관 판단 보완 필요)'];
+      return ['- 본문에 인용된 판례 외 추가 매칭 판례 없음 (수사관 판단 보완 필요)'];
     }
     return [
-      for (final p in precedents) '- **[${p.id}]** ${p.holding}',
+      for (final p in precedents) '- ${p.holding}',
     ];
   }
 

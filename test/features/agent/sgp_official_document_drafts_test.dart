@@ -27,6 +27,43 @@ void main() {
 
     final report = SgpReportGenerator.generate(input);
     expect(report.officialDocuments, isNotNull);
-    expect(report.plainText, contains('범죄 발생 보고서'));
+    // 초동조치 본문(plainText)과 공식 서류는 분리 — 탭 간 중복 방지.
+    expect(report.plainText, isNot(contains('범죄 발생 보고서')));
+    expect(report.combinedPlainText, contains('범죄 발생 보고서'));
+    expect(report.combinedPlainText, contains('체포'));
+  });
+
+  test('보고서 본문 — 판례 중복 인용·영문 코드 미노출', () {
+    final input = SgpReportInput(
+      rawText: '피의자가 먼저 시비를 걸고 칼을 휘두르며 술에 취해 도주하였다.',
+      checklist: const LawCheckList(
+        isWeaponUsed: true,
+        isIntoxicated: true,
+        isFleeing: true,
+      ),
+      generatedAt: DateTime(2026, 7, 11, 21, 0),
+      advancedAnalysis: runAdvancedAnalysis(
+        rawText: '피의자가 먼저 시비를 걸고 칼을 휘두르며 술에 취해 도주하였다.',
+        checklist: const LawCheckList(isWeaponUsed: true, isIntoxicated: true),
+        ruleResult: const RuleMatchResult(
+          triggeredFilters: [],
+          suggestedChecklist: LawCheckList(),
+        ),
+      ),
+    );
+
+    final report = SgpReportGenerator.generate(input);
+
+    // 판례 ID(SC_*) 영문 코드가 본문에 노출되지 않는다.
+    expect(report.markdown, isNot(contains('SC_')));
+    expect(report.markdown, isNot(contains('[SC')));
+
+    // 같은 판례 요지가 본문에 2회 이상 반복되지 않는다.
+    final holdings = RegExp(r'판례 인용[^:]*: (.+)$', multiLine: true)
+        .allMatches(report.markdown)
+        .map((m) => m.group(1)!.trim())
+        .toList();
+    expect(holdings.toSet().length, holdings.length,
+        reason: '본문 내 판례 인용이 중복되면 안 됨');
   });
 }

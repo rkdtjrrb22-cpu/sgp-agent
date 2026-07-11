@@ -39,7 +39,7 @@ $kHallucinationGuardCompact
 [Input]
 $factBlock
 
-[Checklist] weapon:${checklist.isWeaponUsed} dv:${checklist.isDomesticViolence} intox:${checklist.isIntoxicated} flee:${checklist.isFleeing}
+[Checklist] weapon:${checklist.isWeaponUsed} dv:${checklist.isDomesticViolence} intox:${checklist.isIntoxicated} flee:${checklist.isFleeing} seizure:${checklist.isSeizureConstraintReviewed}
 
 [ReqDict]
 ${ruleResult.toCompactDictionary()}

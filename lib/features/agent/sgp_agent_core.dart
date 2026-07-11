@@ -18,13 +18,14 @@ part 'sgp_agent_advanced.dart';
 // 4대 법리 변수 구조체
 // ---------------------------------------------------------------------------
 
-/// 수사관 터치 입력 4대 법리 변수.
+/// 수사관 터치 입력 법리 변수 (4대 + 10월 개정 압수·강제수사 검토).
 class LawCheckList {
   const LawCheckList({
     this.isWeaponUsed = false,
     this.isDomesticViolence = false,
     this.isIntoxicated = false,
     this.isFleeing = false,
+    this.isSeizureConstraintReviewed = false,
   });
 
   /// 특수죄 구성요건(흉기 사용 등) · 반의사불벌죄 배제 가이드.
@@ -39,17 +40,23 @@ class LawCheckList {
   /// 도주·신분 확인 거부 → 형소법 제211조 체포 필요성.
   final bool isFleeing;
 
+  /// 10월 개정 형사법 — 압수·강제수사 제한 요건(보완지시 삭제 등) 검토.
+  final bool isSeizureConstraintReviewed;
+
   LawCheckList copyWith({
     bool? isWeaponUsed,
     bool? isDomesticViolence,
     bool? isIntoxicated,
     bool? isFleeing,
+    bool? isSeizureConstraintReviewed,
   }) {
     return LawCheckList(
       isWeaponUsed: isWeaponUsed ?? this.isWeaponUsed,
       isDomesticViolence: isDomesticViolence ?? this.isDomesticViolence,
       isIntoxicated: isIntoxicated ?? this.isIntoxicated,
       isFleeing: isFleeing ?? this.isFleeing,
+      isSeizureConstraintReviewed:
+          isSeizureConstraintReviewed ?? this.isSeizureConstraintReviewed,
     );
   }
 
@@ -58,6 +65,7 @@ class LawCheckList {
         'isDomesticViolence': isDomesticViolence,
         'isIntoxicated': isIntoxicated,
         'isFleeing': isFleeing,
+        'isSeizureConstraintReviewed': isSeizureConstraintReviewed,
       };
 
   factory LawCheckList.fromJson(Map<String, dynamic> json) {
@@ -66,6 +74,8 @@ class LawCheckList {
       isDomesticViolence: json['isDomesticViolence'] as bool? ?? false,
       isIntoxicated: json['isIntoxicated'] as bool? ?? false,
       isFleeing: json['isFleeing'] as bool? ?? false,
+      isSeizureConstraintReviewed:
+          json['isSeizureConstraintReviewed'] as bool? ?? false,
     );
   }
 }
