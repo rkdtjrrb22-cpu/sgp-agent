@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'sgp_app_theme.dart';
 import 'sgp_agent_stt.dart';
 import 'sgp_legal_hierarchy.dart';
+import 'sgp_legal_hierarchy_tree.dart';
 import 'sgp_quantum_legal_engine.dart';
 
 Color urgencyColor(SgpUrgencyLevel level) => switch (level) {
@@ -147,7 +148,7 @@ class SgpQuantumComparisonPanel extends StatelessWidget {
         ),
         if (comparison.hierarchy != null && !comparison.hierarchy!.isEmpty) ...[
           const SizedBox(height: 8),
-          SgpLegalHierarchyChainBar(resolution: comparison.hierarchy!),
+          SgpLegalHierarchyViewPanel(resolution: comparison.hierarchy!),
         ],
         const SizedBox(height: 10),
         IntrinsicHeight(
@@ -172,11 +173,18 @@ class SgpQuantumComparisonPanel extends StatelessWidget {
   }
 }
 
-/// Sprint S1 — LV 1→8 준거법 체인 (양자 비교 패널 상단).
+/// Sprint S1 — LV 1→8 준거법 체인 (가로 칩).
 class SgpLegalHierarchyChainBar extends StatelessWidget {
-  const SgpLegalHierarchyChainBar({super.key, required this.resolution});
+  const SgpLegalHierarchyChainBar({
+    super.key,
+    required this.resolution,
+    this.compact = false,
+  });
 
   final SgpHierarchyResolution resolution;
+
+  /// true면 헤더·충돌 문구 생략 (ViewPanel에서 사용).
+  final bool compact;
 
   static Color _levelColor(LegalHierarchyLevel level) => switch (level) {
         LegalHierarchyLevel.constitution => const Color(0xFF818CF8),
@@ -197,27 +205,29 @@ class SgpLegalHierarchyChainBar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Icon(Icons.account_tree_outlined, size: 14, color: SgpFieldColors.textSecondary),
-            const SizedBox(width: 4),
-            Text(
-              resolution.primaryLawTitle != null
-                  ? '위계 · ${resolution.primaryLawTitle}'
-                  : '법적 위계 (Top-Down)',
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: SgpFieldColors.textSecondary,
+        if (!compact) ...[
+          Row(
+            children: [
+              Icon(Icons.account_tree_outlined, size: 14, color: SgpFieldColors.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                resolution.primaryLawTitle != null
+                    ? '위계 · ${resolution.primaryLawTitle}'
+                    : '법적 위계 (Top-Down)',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: SgpFieldColors.textSecondary,
+                ),
               ),
-            ),
-            if (resolution.hasUpperLawWarnings) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.warning_amber_rounded, size: 14, color: SgpFieldColors.cautionOrange),
+              if (resolution.hasUpperLawWarnings) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.warning_amber_rounded, size: 14, color: SgpFieldColors.cautionOrange),
+              ],
             ],
-          ],
-        ),
-        const SizedBox(height: 6),
+          ),
+          const SizedBox(height: 6),
+        ],
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -233,7 +243,7 @@ class SgpLegalHierarchyChainBar extends StatelessWidget {
             ],
           ),
         ),
-        if (resolution.conflicts.isNotEmpty) ...[
+        if (!compact && resolution.conflicts.isNotEmpty) ...[
           const SizedBox(height: 6),
           for (final c in resolution.conflicts.take(2))
             Padding(
@@ -272,6 +282,143 @@ class _HierarchyChip extends StatelessWidget {
       child: Text(
         'LV${node.level.value} $title',
         style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+}
+
+/// Sprint S3 — 체인(가로) ↔ 트리(아코디언) 전환.
+class SgpLegalHierarchyViewPanel extends StatefulWidget {
+  const SgpLegalHierarchyViewPanel({super.key, required this.resolution});
+
+  final SgpHierarchyResolution resolution;
+
+  @override
+  State<SgpLegalHierarchyViewPanel> createState() => _SgpLegalHierarchyViewPanelState();
+}
+
+class _SgpLegalHierarchyViewPanelState extends State<SgpLegalHierarchyViewPanel> {
+  bool _showTree = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.account_tree_outlined, size: 14, color: SgpFieldColors.textSecondary),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                widget.resolution.primaryLawTitle != null
+                    ? '법적 위계 · ${widget.resolution.primaryLawTitle}'
+                    : '법적 위계 (Top-Down)',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: SgpFieldColors.textSecondary,
+                ),
+              ),
+            ),
+            if (widget.resolution.hasUpperLawWarnings)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(Icons.warning_amber_rounded, size: 14, color: SgpFieldColors.cautionOrange),
+              ),
+            _HierarchyViewToggle(
+              showTree: _showTree,
+              onChanged: (v) => setState(() => _showTree = v),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: _showTree
+              ? SgpLegalHierarchyTreeWidget(
+                  key: const ValueKey('tree'),
+                  resolution: widget.resolution,
+                )
+              : SgpLegalHierarchyChainBar(
+                  key: const ValueKey('chain'),
+                  resolution: widget.resolution,
+                  compact: true,
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HierarchyViewToggle extends StatelessWidget {
+  const _HierarchyViewToggle({required this.showTree, required this.onChanged});
+
+  final bool showTree;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: SgpFieldColors.surfaceHigh,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: SgpFieldColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _HierarchyToggleChip(
+            label: '체인',
+            icon: Icons.linear_scale,
+            selected: !showTree,
+            onTap: () => onChanged(false),
+          ),
+          _HierarchyToggleChip(
+            label: '트리',
+            icon: Icons.account_tree,
+            selected: showTree,
+            onTap: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HierarchyToggleChip extends StatelessWidget {
+  const _HierarchyToggleChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? SgpFieldColors.navy : SgpFieldColors.textSecondary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.18) : Colors.transparent,
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 3),
+            Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color)),
+          ],
+        ),
       ),
     );
   }

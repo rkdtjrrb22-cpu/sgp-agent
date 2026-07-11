@@ -338,6 +338,7 @@ class SgpQuantumLegalEngine {
       context: LegalHierarchyContext(
         orgId: 'KR-NPA',
         taskCategory: 'field_arrest',
+        localGovCode: inferLocalGovCodeFromText(text),
         domainTags: domainTags,
       ),
       anchorNodeIds: anchors,

@@ -195,4 +195,56 @@ void main() {
       expect(domainTagsForIncidentKey('domestic_violence'), contains('domestic_violence'));
     });
   });
+
+  group('SgpLegalHierarchyTreeBuilder', () {
+    test('buildForest — parent_id 트리 구조', () {
+      SgpLegalHierarchyRegistry.instance.loadFromJson('''
+[
+  {"id":"KR-CONST-001","level":1,"title":"헌법","parent_id":null,"scope":{"country":"KR"},"domain_tags":["all"]},
+  {"id":"KR-LAW-CRIMINAL","level":2,"title":"형법","parent_id":"KR-CONST-001","scope":{"country":"KR"},"domain_tags":["criminal"]},
+  {"id":"KR-LOCAL-11-ORD","level":5,"title":"서울 조례","parent_id":"KR-LAW-CRIMINAL","scope":{"country":"KR","local_gov_code":"11"},"domain_tags":["criminal"]},
+  {"id":"KR-LOCAL-11-RULE","level":6,"title":"서울 규칙","parent_id":"KR-LOCAL-11-ORD","scope":{"country":"KR","local_gov_code":"11"},"domain_tags":["criminal"]}
+]
+''');
+
+      final resolution = SgpLegalHierarchyEngine.resolve(
+        context: const LegalHierarchyContext(localGovCode: '11', domainTags: {'criminal'}),
+        anchorNodeIds: {'KR-LAW-CRIMINAL'},
+      );
+
+      final forest = SgpLegalHierarchyTreeBuilder.buildForest(resolution.chain);
+      expect(forest.length, 1);
+      expect(forest.first.node.id, 'KR-CONST-001');
+      expect(forest.first.children.single.node.id, 'KR-LAW-CRIMINAL');
+      expect(forest.first.children.single.children.single.node.id, 'KR-LOCAL-11-ORD');
+    });
+  });
+
+  group('inferLocalGovCodeFromText', () {
+    test('서울·부산 키워드', () {
+      expect(inferLocalGovCodeFromText('서울 강남구 현장'), '11');
+      expect(inferLocalGovCodeFromText('부산 해운대'), '26');
+      expect(inferLocalGovCodeFromText('일반 사건'), isNull);
+    });
+  });
+
+  group('LV5~6 local_gov_code 필터', () {
+    test('서울 조례만 포함·부산 제외', () {
+      SgpLegalHierarchyRegistry.instance.loadFromJson('''
+[
+  {"id":"KR-CONST-001","level":1,"title":"헌법","parent_id":null,"scope":{"country":"KR"},"domain_tags":["all"]},
+  {"id":"KR-LAW-CRIMINAL","level":2,"title":"형법","parent_id":"KR-CONST-001","scope":{"country":"KR"},"domain_tags":["criminal"]},
+  {"id":"KR-LOCAL-11-ORD","level":5,"title":"서울 조례","parent_id":"KR-LAW-CRIMINAL","scope":{"country":"KR","local_gov_code":"11"},"domain_tags":["criminal"]},
+  {"id":"KR-LOCAL-26-ORD","level":5,"title":"부산 조례","parent_id":"KR-LAW-CRIMINAL","scope":{"country":"KR","local_gov_code":"26"},"domain_tags":["criminal"]}
+]
+''');
+
+      final seoul = SgpLegalHierarchyEngine.resolve(
+        context: const LegalHierarchyContext(localGovCode: '11', domainTags: {'criminal'}),
+        anchorNodeIds: {'KR-LAW-CRIMINAL'},
+      );
+      expect(seoul.chain.any((n) => n.id == 'KR-LOCAL-11-ORD'), isTrue);
+      expect(seoul.chain.any((n) => n.id == 'KR-LOCAL-26-ORD'), isFalse);
+    });
+  });
 }

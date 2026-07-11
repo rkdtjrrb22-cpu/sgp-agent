@@ -498,6 +498,17 @@ abstract final class SgpLegalHierarchyEngine {
     }
 
     for (final node in registry.allNodes) {
+      if (node.level.value >= 5 && node.level.value <= 6 && _matchesContext(node, context)) {
+        merged[node.id] = node;
+        for (final ancestor in registry.ancestorsOf(node.id)) {
+          if (_matchesContext(ancestor, context)) {
+            merged[ancestor.id] = ancestor;
+          }
+        }
+      }
+    }
+
+    for (final node in registry.allNodes) {
       if (node.level.value >= 7 && _matchesContext(node, context)) {
         merged[node.id] = node;
         for (final ancestor in registry.ancestorsOf(node.id)) {
@@ -577,6 +588,74 @@ abstract final class SgpLegalHierarchyEngine {
     }
     return conflicts;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Sprint S3 — Top-Down 트리 빌드 · 지자체 코드 추론
+// ---------------------------------------------------------------------------
+
+/// 위계 체인 → parent_id 기반 트리 노드.
+class LegalHierarchyTreeNode {
+  LegalHierarchyTreeNode({required this.node, List<LegalHierarchyTreeNode>? children})
+      : children = children ?? [];
+
+  final LegalHierarchyNode node;
+  final List<LegalHierarchyTreeNode> children;
+}
+
+abstract final class SgpLegalHierarchyTreeBuilder {
+  /// flat chain → forest (루트는 chain 내 parent가 없는 노드).
+  static List<LegalHierarchyTreeNode> buildForest(List<LegalHierarchyNode> chain) {
+    if (chain.isEmpty) return [];
+
+    final ids = chain.map((n) => n.id).toSet();
+    final byId = <String, LegalHierarchyTreeNode>{
+      for (final n in chain) n.id: LegalHierarchyTreeNode(node: n),
+    };
+
+    final roots = <LegalHierarchyTreeNode>[];
+    for (final n in chain) {
+      final treeNode = byId[n.id]!;
+      final pid = n.parentId;
+      if (pid != null && ids.contains(pid)) {
+        byId[pid]!.children.add(treeNode);
+      } else {
+        roots.add(treeNode);
+      }
+    }
+
+    roots.sort((a, b) => a.node.level.value.compareTo(b.node.level.value));
+    for (final r in roots) {
+      _sortChildrenRecursive(r);
+    }
+    return roots;
+  }
+
+  static void _sortChildrenRecursive(LegalHierarchyTreeNode node) {
+    node.children.sort((a, b) => a.node.level.value.compareTo(b.node.level.value));
+    for (final c in node.children) {
+      _sortChildrenRecursive(c);
+    }
+  }
+}
+
+/// STT·조서 텍스트에서 지자체 코드(행정표준) 추론.
+String? inferLocalGovCodeFromText(String text) {
+  if (text.isEmpty) return null;
+  const patterns = <String, String>{
+    '서울': '11',
+    '부산': '26',
+    '대구': '27',
+    '인천': '28',
+    '광주': '29',
+    '대전': '30',
+    '울산': '31',
+    '세종': '36',
+  };
+  for (final entry in patterns.entries) {
+    if (text.contains(entry.key)) return entry.value;
+  }
+  return null;
 }
 
 extension<T> on Iterable<T> {
