@@ -939,6 +939,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                     SgpActionGuidanceBar(
                       guidance: _quantumComparison!.actionGuidance,
                       urgency: _quantumComparison!.urgencyLevel,
+                      hierarchyGuidance: _quantumComparison!.hierarchyGuidance,
                     ),
                   ],
                   const SizedBox(height: 12),

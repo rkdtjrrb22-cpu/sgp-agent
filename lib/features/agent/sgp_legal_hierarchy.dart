@@ -195,6 +195,172 @@ class SgpHierarchyResolution {
   );
 }
 
+/// Cross-Filter·충돌 해소 결과 (Sprint S2).
+class SgpHierarchyResolvedGuidance {
+  const SgpHierarchyResolvedGuidance({
+    required this.actionGuidance,
+    required this.upperLawNotices,
+    required this.matchedPerspectiveIds,
+    required this.demotedPerspectiveIds,
+    required this.hasUpperLawWarnings,
+    this.primaryLawTitle,
+    this.requiresManualReview = false,
+  });
+
+  final String actionGuidance;
+  final List<String> upperLawNotices;
+
+  /// 위계 체인과 매칭된 관점 ID.
+  final List<String> matchedPerspectiveIds;
+
+  /// 위계 미매칭·가중치 감소 대상 ID.
+  final List<String> demotedPerspectiveIds;
+  final bool hasUpperLawWarnings;
+  final String? primaryLawTitle;
+  final bool requiresManualReview;
+
+  bool get hasCrossFilterEffect => demotedPerspectiveIds.isNotEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'actionGuidance': actionGuidance,
+        'upperLawNotices': upperLawNotices,
+        'matchedPerspectiveIds': matchedPerspectiveIds,
+        'demotedPerspectiveIds': demotedPerspectiveIds,
+        'hasUpperLawWarnings': hasUpperLawWarnings,
+        'primaryLawTitle': primaryLawTitle,
+        'requiresManualReview': requiresManualReview,
+      };
+
+  factory SgpHierarchyResolvedGuidance.fromJson(Map<String, dynamic> json) {
+    return SgpHierarchyResolvedGuidance(
+      actionGuidance: json['actionGuidance'] as String? ?? '',
+      upperLawNotices:
+          (json['upperLawNotices'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      matchedPerspectiveIds: (json['matchedPerspectiveIds'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      demotedPerspectiveIds: (json['demotedPerspectiveIds'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      hasUpperLawWarnings: json['hasUpperLawWarnings'] as bool? ?? false,
+      primaryLawTitle: json['primaryLawTitle'] as String?,
+      requiresManualReview: json['requiresManualReview'] as bool? ?? false,
+    );
+  }
+}
+
+/// 양자 관점 ↔ 위계 Cross-Filter 매칭용 경량 DTO.
+class HierarchyPerspectiveRef {
+  const HierarchyPerspectiveRef({
+    required this.id,
+    required this.kind,
+    required this.law,
+    required this.weightScore,
+  });
+
+  final String id;
+  final String kind;
+  final String law;
+  final double weightScore;
+}
+
+// ---------------------------------------------------------------------------
+// Sprint S2 — Cross-Filter · HierarchyConflictResolver
+// ---------------------------------------------------------------------------
+
+abstract final class SgpHierarchyCrossFilter {
+  /// 위계 체인과 law/kind 매칭 — 매칭·미매칭 ID 분리.
+  static ({List<String> matched, List<String> demoted}) partition(
+    List<HierarchyPerspectiveRef> perspectives,
+    SgpHierarchyResolution hierarchy,
+  ) {
+    if (hierarchy.isEmpty) {
+      return (matched: perspectives.map((p) => p.id).toList(), demoted: const []);
+    }
+
+    final matched = <String>[];
+    final demoted = <String>[];
+    for (final p in perspectives) {
+      if (_matchesChain(p, hierarchy.chain)) {
+        matched.add(p.id);
+      } else {
+        demoted.add(p.id);
+      }
+    }
+    if (matched.isEmpty) {
+      return (matched: perspectives.map((p) => p.id).toList(), demoted: const []);
+    }
+    return (matched: matched, demoted: demoted);
+  }
+
+  static bool _matchesChain(HierarchyPerspectiveRef p, List<LegalHierarchyNode> chain) {
+    for (final node in chain) {
+      if (_lawReferencesNode(p.law, node)) return true;
+    }
+    return switch (p.kind) {
+      'special' => chain.any((n) => n.domainTags.contains('special')),
+      'criminal' => chain.any((n) => n.domainTags.contains('criminal')),
+      'civil' => chain.any((n) => n.domainTags.contains('civil') || n.domainTags.contains('administrative')),
+      _ => false,
+    };
+  }
+
+  static bool _lawReferencesNode(String law, LegalHierarchyNode node) {
+    if (law.contains(node.title)) return true;
+    final short = node.title.split(' ').first;
+    if (short.length >= 2 && law.contains(short)) return true;
+    for (final art in node.articles) {
+      if (law.contains(art)) return true;
+    }
+    return false;
+  }
+}
+
+abstract final class HierarchyConflictResolver {
+  /// 상위법 우선 가이드 병합 + Cross-Filter 결과.
+  static SgpHierarchyResolvedGuidance resolve({
+    required SgpHierarchyResolution hierarchy,
+    required List<HierarchyPerspectiveRef> perspectives,
+    required String baseActionGuidance,
+  }) {
+    final partition = SgpHierarchyCrossFilter.partition(perspectives, hierarchy);
+    final notices = hierarchy.conflicts.map((c) => c.message).toList();
+    var guidance = baseActionGuidance;
+    var manualReview = false;
+
+    if (hierarchy.hasUpperLawWarnings) {
+      final upperTitles = hierarchy.chain
+          .where((n) => n.level.value <= 4)
+          .map((n) => n.title)
+          .toSet()
+          .join(' · ');
+      if (upperTitles.isNotEmpty) {
+        guidance = '【상위법 우선 · $upperTitles】$guidance';
+      }
+    }
+
+    if (partition.demoted.isNotEmpty && partition.matched.isNotEmpty) {
+      guidance =
+          '$guidance (위계 미매칭 관점 ${partition.demoted.length}건 — 참고용·가중치 감소)';
+    }
+
+    if (hierarchy.isEmpty && perspectives.isNotEmpty) {
+      manualReview = true;
+      guidance = '$guidance [추후 보완: 위계 시드 미로드·수사관 수기 확인]';
+    }
+
+    return SgpHierarchyResolvedGuidance(
+      actionGuidance: guidance,
+      upperLawNotices: notices,
+      matchedPerspectiveIds: partition.matched,
+      demotedPerspectiveIds: partition.demoted,
+      hasUpperLawWarnings: hierarchy.hasUpperLawWarnings,
+      primaryLawTitle: hierarchy.primaryLawTitle,
+      requiresManualReview: manualReview,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 레지스트리 — JSON 로드 · Parent_ID 인덱스
 // ---------------------------------------------------------------------------
@@ -272,10 +438,11 @@ abstract final class SgpLegalHierarchyEngine {
     'traffic': ['KR-LAW-TRAFFIC'],
     'procedure': ['KR-LAW-CRIM-PROC'],
     'evidence': ['KR-LAW-POLICE-DUTY'],
+    'stalking': ['KR-LAW-STALKING', 'KR-LAW-CRIMINAL'],
+    'road': ['KR-LAW-ROAD', 'KR-LAW-CRIMINAL'],
+    'civil': ['KR-LAW-CIVIL-PROC', 'KR-LAW-CRIMINAL'],
     'criminal': ['KR-LAW-CRIMINAL', 'KR-LAW-CRIM-PROC'],
   };
-
-  /// 사건 유형·체크리스트·텍스트로 앵커 노드 ID 목록 추론.
   static Set<String> inferAnchorIds({
     required Set<String> domainTags,
     required bool includeProcedure,
@@ -424,11 +591,11 @@ Set<String> domainTagsForIncidentKey(String incidentJsonKey) {
   return switch (incidentJsonKey) {
     'dog_bite_incident' => {'animal', 'criminal', 'special'},
     'domestic_violence' => {'domestic_violence', 'criminal', 'special', 'procedure'},
-    'stalking' => {'criminal', 'special', 'procedure'},
+    'stalking' => {'criminal', 'special', 'procedure', 'stalking'},
     'mutual_combat' => {'criminal', 'procedure'},
     'traffic_incident' => {'traffic', 'criminal'},
-    'road_occupancy' => {'criminal', 'procedure'},
-    'civil_dispute' => {'criminal', 'procedure'},
+    'road_occupancy' => {'criminal', 'procedure', 'road'},
+    'civil_dispute' => {'criminal', 'procedure', 'civil'},
     _ => {'criminal', 'procedure'},
   };
 }

@@ -17,7 +17,7 @@
     "scope": { "country": "KR" },
     "filter_keys": ["domain_tag:criminal"],
     "domain_tags": ["criminal", "violence", "property"],
-    "articles": ["제21조", "제260조", "제266조"],
+    "articles": ["제21조", "제260조", "제266조", "제283조"],
     "summary": "범죄·형벌의 일반법"
   },
   {
@@ -39,6 +39,7 @@
     "scope": { "country": "KR" },
     "filter_keys": ["domain_tag:domestic_violence"],
     "domain_tags": ["criminal", "special", "domestic_violence"],
+    "articles": ["제4조", "제54조"],
     "summary": "가정폭력 특별법 — 형법 특칙"
   },
   {
@@ -60,25 +61,41 @@
     "scope": { "country": "KR" },
     "filter_keys": ["domain_tag:traffic"],
     "domain_tags": ["criminal", "administrative", "traffic"],
+    "articles": ["제44조", "제148조"],
     "summary": "교통사고·음주운전 등"
   },
   {
-    "id": "KR-DECREE-CRIM-PROC",
-    "level": 3,
-    "title": "형사소송법 시행령",
-    "parent_id": "KR-LAW-CRIM-PROC",
+    "id": "KR-LAW-STALKING",
+    "level": 2,
+    "title": "스토킹범죄의 처벌 등에 관한 법률",
+    "parent_id": "KR-CONST-001",
     "scope": { "country": "KR" },
-    "filter_keys": ["parent_law_id:KR-LAW-CRIM-PROC"],
-    "summary": "형소법 세부 시행"
+    "filter_keys": ["domain_tag:stalking"],
+    "domain_tags": ["criminal", "special", "stalking"],
+    "articles": ["제14조", "제15조"],
+    "summary": "스토킹·긴급응급조치"
   },
   {
-    "id": "KR-RULE-CRIM-PROC",
-    "level": 4,
-    "title": "형사소송규칙",
-    "parent_id": "KR-DECREE-CRIM-PROC",
+    "id": "KR-LAW-ROAD",
+    "level": 2,
+    "title": "도로법",
+    "parent_id": "KR-CONST-001",
     "scope": { "country": "KR" },
-    "filter_keys": ["parent_decree_id:KR-DECREE-CRIM-PROC"],
-    "summary": "수사 실무 서식·절차 세부"
+    "filter_keys": ["domain_tag:road"],
+    "domain_tags": ["criminal", "administrative", "road"],
+    "articles": ["제61조", "제107조"],
+    "summary": "도로 점유·공작물·통행"
+  },
+  {
+    "id": "KR-LAW-CIVIL-PROC",
+    "level": 2,
+    "title": "민사소송법",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:civil"],
+    "domain_tags": ["civil", "procedure"],
+    "articles": ["제1조", "제247조"],
+    "summary": "민사 분쟁·가압류·가처분"
   },
   {
     "id": "KR-LAW-POLICE-DUTY",
@@ -92,14 +109,77 @@
     "summary": "현장 채증·영상녹화 고지"
   },
   {
+    "id": "KR-DECREE-CRIM-PROC",
+    "level": 3,
+    "title": "형사소송법 시행령",
+    "parent_id": "KR-LAW-CRIM-PROC",
+    "scope": { "country": "KR" },
+    "filter_keys": ["parent_law_id:KR-LAW-CRIM-PROC"],
+    "domain_tags": ["criminal", "procedure"],
+    "summary": "형소법 세부 시행"
+  },
+  {
+    "id": "KR-DECREE-POLICE-DUTY",
+    "level": 3,
+    "title": "경찰관 직무집행법 시행령",
+    "parent_id": "KR-LAW-POLICE-DUTY",
+    "scope": { "country": "KR" },
+    "filter_keys": ["parent_law_id:KR-LAW-POLICE-DUTY"],
+    "domain_tags": ["criminal", "procedure", "evidence"],
+    "summary": "채증·신분증 확인 세부"
+  },
+  {
+    "id": "KR-RULE-CRIM-PROC",
+    "level": 4,
+    "title": "형사소송규칙",
+    "parent_id": "KR-DECREE-CRIM-PROC",
+    "scope": { "country": "KR" },
+    "filter_keys": ["parent_decree_id:KR-DECREE-CRIM-PROC"],
+    "domain_tags": ["criminal", "procedure"],
+    "summary": "수사 실무 서식·절차 세부"
+  },
+  {
+    "id": "KR-RULE-POLICE-EXEC",
+    "level": 4,
+    "title": "경찰관 직무집행규칙",
+    "parent_id": "KR-DECREE-POLICE-DUTY",
+    "scope": { "country": "KR" },
+    "filter_keys": ["parent_decree_id:KR-DECREE-POLICE-DUTY"],
+    "domain_tags": ["criminal", "procedure", "evidence"],
+    "summary": "현장 집행·바디캠 실무"
+  },
+  {
+    "id": "KR-LAW-INFO-COMM",
+    "level": 2,
+    "title": "정보통신망 이용촉진 및 정보보호 등에 관한 법률",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:digital_evidence"],
+    "domain_tags": ["criminal", "procedure", "evidence"],
+    "articles": ["제48조", "제74조"],
+    "summary": "디지털 증거·통신자료"
+  },
+  {
     "id": "ORG-NPA-INVEST-RULE",
     "level": 7,
     "title": "경찰 수사규칙 (예시 — 조직 내부)",
     "parent_id": "KR-LAW-CRIM-PROC",
     "scope": { "org_id": "KR-NPA" },
     "filter_keys": ["org_id:KR-NPA"],
+    "domain_tags": ["criminal", "procedure"],
     "conflict_check": true,
     "summary": "경찰청 내부 수사 절차 — 상위법 충돌 시 무효"
+  },
+  {
+    "id": "ORG-NPA-EVIDENCE-GUIDE",
+    "level": 7,
+    "title": "경찰 디지털 증거 채증 가이드 (예시)",
+    "parent_id": "KR-LAW-POLICE-DUTY",
+    "scope": { "org_id": "KR-NPA" },
+    "filter_keys": ["org_id:KR-NPA", "domain_tag:evidence"],
+    "domain_tags": ["criminal", "procedure", "evidence"],
+    "conflict_check": true,
+    "summary": "휴대폰·CCTV 채증 내부 기준"
   },
   {
     "id": "MANUAL-SGP-FIELD-001",
@@ -108,6 +188,38 @@
     "parent_id": "ORG-NPA-INVEST-RULE",
     "scope": { "org_id": "KR-NPA", "task_category": "field_arrest" },
     "filter_keys": ["task_category:field_arrest"],
+    "domain_tags": ["criminal", "procedure"],
     "summary": "체포 T-0·채증·신병인계 현장 체크리스트"
+  },
+  {
+    "id": "MANUAL-SGP-EVIDENCE-001",
+    "level": 8,
+    "title": "SGP-Agent 현장 채증·고지 매뉴얼",
+    "parent_id": "ORG-NPA-EVIDENCE-GUIDE",
+    "scope": { "org_id": "KR-NPA", "task_category": "field_arrest" },
+    "filter_keys": ["task_category:field_arrest", "domain_tag:evidence"],
+    "domain_tags": ["criminal", "procedure", "evidence"],
+    "summary": "바디캠·녹화 고지·압수 전 checklist"
+  },
+  {
+    "id": "KR-LAW-CIVIL",
+    "level": 2,
+    "title": "민법",
+    "parent_id": "KR-CONST-001",
+    "scope": { "country": "KR" },
+    "filter_keys": ["domain_tag:civil"],
+    "domain_tags": ["civil"],
+    "articles": ["제759조", "제750조"],
+    "summary": "불법행위·손해배상"
+  },
+  {
+    "id": "KR-DECREE-TRAFFIC",
+    "level": 3,
+    "title": "도로교통법 시행령",
+    "parent_id": "KR-LAW-TRAFFIC",
+    "scope": { "country": "KR" },
+    "filter_keys": ["parent_law_id:KR-LAW-TRAFFIC"],
+    "domain_tags": ["criminal", "traffic", "administrative"],
+    "summary": "교통사고 처리·검사 세부"
   }
 ]

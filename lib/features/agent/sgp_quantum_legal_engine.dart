@@ -123,6 +123,7 @@ class SgpQuantumLegalComparison {
     required this.summary,
     required this.hasLegalConflict,
     this.hierarchy,
+    this.hierarchyGuidance,
   });
 
   final IncidentType incidentType;
@@ -137,6 +138,9 @@ class SgpQuantumLegalComparison {
   /// Sprint S1 — 8단계 법적 위계 Top-Down 체인.
   final SgpHierarchyResolution? hierarchy;
 
+  /// Sprint S2 — Cross-Filter·상위법 우선 가이드.
+  final SgpHierarchyResolvedGuidance? hierarchyGuidance;
+
   Map<String, dynamic> toJson() => {
         'incidentType': incidentType.jsonKey,
         'perspectives': perspectives.map((p) => p.toJson()).toList(),
@@ -147,6 +151,7 @@ class SgpQuantumLegalComparison {
         'summary': summary,
         'hasLegalConflict': hasLegalConflict,
         if (hierarchy != null) 'hierarchy': hierarchy!.toJson(),
+        if (hierarchyGuidance != null) 'hierarchyGuidance': hierarchyGuidance!.toJson(),
       };
 
   factory SgpQuantumLegalComparison.fromJson(Map<String, dynamic> json) {
@@ -155,6 +160,7 @@ class SgpQuantumLegalComparison {
         .toList();
     final recId = json['recommendedPathId'] as String?;
     final hierarchyJson = json['hierarchy'];
+    final hierarchyGuidanceJson = json['hierarchyGuidance'];
     return SgpQuantumLegalComparison(
       incidentType: IncidentType.values.firstWhere(
         (t) => t.jsonKey == json['incidentType'],
@@ -172,6 +178,9 @@ class SgpQuantumLegalComparison {
       hasLegalConflict: json['hasLegalConflict'] as bool? ?? false,
       hierarchy: hierarchyJson is Map<String, dynamic>
           ? SgpHierarchyResolution.fromJson(hierarchyJson)
+          : null,
+      hierarchyGuidance: hierarchyGuidanceJson is Map<String, dynamic>
+          ? SgpHierarchyResolvedGuidance.fromJson(hierarchyGuidanceJson)
           : null,
     );
   }
@@ -250,18 +259,61 @@ class SgpQuantumLegalEngine {
     );
 
     final hierarchy = _resolveHierarchy(incident, checklist, text);
+    final (finalPerspectives, finalGuidance, hierarchyGuidance) =
+        _applyHierarchyGuidance(hierarchy, marked, guidance);
+    final finalTop = finalPerspectives.where((p) => p.recommended).firstOrNull;
 
     return SgpQuantumLegalComparison(
       incidentType: incident,
-      perspectives: marked,
-      recommendedPath: marked.where((p) => p.recommended).firstOrNull,
-      actionGuidance: guidance,
+      perspectives: finalPerspectives,
+      recommendedPath: finalTop,
+      actionGuidance: finalGuidance,
       urgencyLevel: urgency,
       appliedTrendIds: activeTrends.map((t) => t.id).toList(),
-      summary: _buildSummary(incident, top, conflict),
+      summary: _buildSummary(incident, finalTop, conflict),
       hasLegalConflict: conflict || (hierarchy?.hasUpperLawWarnings ?? false),
       hierarchy: hierarchy,
+      hierarchyGuidance: hierarchyGuidance,
     );
+  }
+
+  static (List<LegalPerspective>, String, SgpHierarchyResolvedGuidance?) _applyHierarchyGuidance(
+    SgpHierarchyResolution? hierarchy,
+    List<LegalPerspective> perspectives,
+    String baseGuidance,
+  ) {
+    if (hierarchy == null || hierarchy.isEmpty) {
+      return (perspectives, baseGuidance, null);
+    }
+
+    final refs = perspectives
+        .map((p) => HierarchyPerspectiveRef(
+              id: p.id,
+              kind: p.kind,
+              law: p.law,
+              weightScore: p.weightScore,
+            ))
+        .toList();
+
+    final resolved = HierarchyConflictResolver.resolve(
+      hierarchy: hierarchy,
+      perspectives: refs,
+      baseActionGuidance: baseGuidance,
+    );
+
+    final demoted = resolved.demotedPerspectiveIds.toSet();
+    final adjusted = perspectives.map((p) {
+      if (!demoted.contains(p.id)) return p;
+      return p.copyWith(weightScore: p.weightScore * 0.45, recommended: false);
+    }).toList();
+
+    adjusted.sort((a, b) => b.weightScore.compareTo(a.weightScore));
+    final reMarked = [
+      for (var i = 0; i < adjusted.length; i++)
+        adjusted[i].copyWith(recommended: i == 0 && !demoted.contains(adjusted[i].id)),
+    ];
+
+    return (reMarked, resolved.actionGuidance, resolved);
   }
 
   static SgpHierarchyResolution? _resolveHierarchy(

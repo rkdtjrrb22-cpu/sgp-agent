@@ -100,6 +100,9 @@ class SgpQuantumComparisonPanel extends StatelessWidget {
   /// CoT 추론 후 각 카드 하단 [핵심 판례 가이드] 표시.
   final bool showPrecedentGuides;
 
+  Set<String> get _demotedIds =>
+      comparison.hierarchyGuidance?.demotedPerspectiveIds.toSet() ?? const {};
+
   @override
   Widget build(BuildContext context) {
     final cards = comparison.perspectives.take(2).toList();
@@ -157,6 +160,7 @@ class SgpQuantumComparisonPanel extends StatelessWidget {
                   perspective: cards[i],
                   urgency: comparison.urgencyLevel,
                   showPrecedentGuide: showPrecedentGuides,
+                  demotedByHierarchy: _demotedIds.contains(cards[i].id),
                   onTap: onPerspectiveTap != null ? () => onPerspectiveTap!(cards[i]) : null,
                 )),
               ],
@@ -278,12 +282,14 @@ class _PerspectiveCard extends StatelessWidget {
     required this.perspective,
     required this.urgency,
     this.showPrecedentGuide = false,
+    this.demotedByHierarchy = false,
     this.onTap,
   });
 
   final LegalPerspective perspective;
   final SgpUrgencyLevel urgency;
   final bool showPrecedentGuide;
+  final bool demotedByHierarchy;
   final VoidCallback? onTap;
 
   @override
@@ -310,17 +316,35 @@ class _PerspectiveCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                perspective.kind == 'special'
-                    ? '특별법'
-                    : perspective.kind == 'civil'
-                        ? '민사'
-                        : '형법',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: accent,
-                ),
+              Row(
+                children: [
+                  Text(
+                    perspective.kind == 'special'
+                        ? '특별법'
+                        : perspective.kind == 'civil'
+                            ? '민사'
+                            : '형법',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: accent,
+                    ),
+                  ),
+                  if (demotedByHierarchy) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: SgpFieldColors.textSecondary.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        '참고용',
+                        style: TextStyle(fontSize: 8, color: SgpFieldColors.textSecondary.withValues(alpha: 0.85)),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -399,43 +423,135 @@ class _PerspectiveCard extends StatelessWidget {
   }
 }
 
-/// 실시간 행동 지침 바.
+/// 실시간 행동 지침 바 (S2 — 상위법 경고·Cross-Filter 배지).
 class SgpActionGuidanceBar extends StatelessWidget {
   const SgpActionGuidanceBar({
     super.key,
     required this.guidance,
     required this.urgency,
+    this.hierarchyGuidance,
   });
 
   final String guidance;
   final SgpUrgencyLevel urgency;
+  final SgpHierarchyResolvedGuidance? hierarchyGuidance;
 
   @override
   Widget build(BuildContext context) {
     final color = urgencyColor(urgency);
+    final hg = hierarchyGuidance;
+    final showUpperLaw = hg?.hasUpperLawWarnings ?? false;
+    final showCrossFilter = hg?.hasCrossFilterEffect ?? false;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color, width: 1.5),
+        border: Border.all(
+          color: showUpperLaw ? SgpFieldColors.cautionOrange : color,
+          width: showUpperLaw ? 2 : 1.5,
+        ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.campaign, color: color, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '⚠️ 실시간 행동 지침: $guidance',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-                height: 1.4,
+          if (showUpperLaw || showCrossFilter)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  if (showUpperLaw)
+                    _GuidanceBadge(
+                      label: '상위법 경고',
+                      icon: Icons.warning_amber_rounded,
+                      color: SgpFieldColors.cautionOrange,
+                    ),
+                  if (showCrossFilter)
+                    _GuidanceBadge(
+                      label: 'Cross-Filter',
+                      icon: Icons.filter_alt_outlined,
+                      color: SgpFieldColors.navy,
+                    ),
+                  if (hg?.requiresManualReview ?? false)
+                    _GuidanceBadge(
+                      label: '수기 확인',
+                      icon: Icons.edit_note,
+                      color: SgpFieldColors.textSecondary,
+                    ),
+                ],
               ),
             ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.campaign, color: color, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '⚠️ 실시간 행동 지침: $guidance',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (hg != null && hg.upperLawNotices.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final notice in hg.upperLawNotices.take(3))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  notice,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: SgpFieldColors.cautionOrange.withValues(alpha: 0.95),
+                    height: 1.35,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GuidanceBadge extends StatelessWidget {
+  const _GuidanceBadge({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
           ),
         ],
       ),

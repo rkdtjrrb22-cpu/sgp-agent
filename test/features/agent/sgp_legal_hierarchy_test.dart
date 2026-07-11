@@ -124,6 +124,71 @@ void main() {
     });
   });
 
+  group('HierarchyConflictResolver', () {
+    test('상위법 우선 가이드 병합', () {
+      final resolution = SgpLegalHierarchyEngine.resolve(
+        context: LegalHierarchyContext.fieldPolice,
+        anchorNodeIds: {'ORG-NPA-INVEST-RULE'},
+      );
+
+      final resolved = HierarchyConflictResolver.resolve(
+        hierarchy: resolution,
+        perspectives: const [
+          HierarchyPerspectiveRef(
+            id: 'p1',
+            kind: 'criminal',
+            law: '형법 제260조',
+            weightScore: 0.5,
+          ),
+          HierarchyPerspectiveRef(
+            id: 'p2',
+            kind: 'special',
+            law: '가정폭력처벌법',
+            weightScore: 0.8,
+          ),
+        ],
+        baseActionGuidance: '테스트 지침',
+      );
+
+      expect(resolved.hasUpperLawWarnings, isTrue);
+      expect(resolved.actionGuidance, contains('상위법 우선'));
+      expect(resolved.actionGuidance, contains('테스트 지침'));
+      expect(resolved.upperLawNotices, isNotEmpty);
+    });
+
+    test('Cross-Filter — 민법 관점 demote', () {
+      final resolution = SgpLegalHierarchyEngine.resolve(
+        context: LegalHierarchyContext(
+          orgId: 'KR-NPA',
+          taskCategory: 'field_arrest',
+          domainTags: {'animal', 'criminal'},
+        ),
+        anchorNodeIds: {'KR-LAW-ANIMAL', 'KR-LAW-CRIMINAL'},
+      );
+
+      final partition = SgpHierarchyCrossFilter.partition(
+        const [
+          HierarchyPerspectiveRef(
+            id: 'crim',
+            kind: 'criminal',
+            law: '형법 제266조',
+            weightScore: 0.5,
+          ),
+          HierarchyPerspectiveRef(
+            id: 'civil',
+            kind: 'civil',
+            law: '민법 제759조',
+            weightScore: 0.35,
+          ),
+        ],
+        resolution,
+      );
+
+      expect(partition.matched, contains('crim'));
+      expect(partition.demoted, contains('civil'));
+    });
+  });
+
   group('domainTagsForIncidentKey', () {
     test('교통·가정폭력 태그', () {
       expect(domainTagsForIncidentKey('traffic_incident'), contains('traffic'));
