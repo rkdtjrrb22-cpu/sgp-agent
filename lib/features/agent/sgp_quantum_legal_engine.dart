@@ -219,6 +219,7 @@ class SgpQuantumLegalEngine {
     SgpAdvancedAnalysis? advancedAnalysis,
     SgpProcedureTimeline? timeline,
     List<CourtPrecedentTrend>? trends,
+    String? orgId,
   }) {
     final text = rawText.trim();
     final incident = _detectIncident(text, checklist);
@@ -258,7 +259,7 @@ class SgpQuantumLegalEngine {
       urgency: urgency,
     );
 
-    final hierarchy = _resolveHierarchy(incident, checklist, text);
+    final hierarchy = _resolveHierarchy(incident, checklist, text, orgId);
     final (finalPerspectives, finalGuidance, hierarchyGuidance) =
         _applyHierarchyGuidance(hierarchy, marked, guidance);
     final finalTop = finalPerspectives.where((p) => p.recommended).firstOrNull;
@@ -320,6 +321,7 @@ class SgpQuantumLegalEngine {
     IncidentType incident,
     LawCheckList checklist,
     String text,
+    String? orgId,
   ) {
     if (!SgpLegalHierarchyRegistry.instance.isLoaded) return null;
 
@@ -327,16 +329,19 @@ class SgpQuantumLegalEngine {
     if (checklist.isDomesticViolence) domainTags.add('domestic_violence');
     if (checklist.isSeizureConstraintReviewed) domainTags.add('procedure');
 
+    // Sprint S4 — 조직 미프로비저닝(orgId=null) 시 LV7~8 조직 규정·매뉴얼 제외.
+    final includeOrgManual = orgId != null;
+
     final anchors = SgpLegalHierarchyEngine.inferAnchorIds(
       domainTags: domainTags,
       includeProcedure: true,
       includeEvidence: RegExp(r'(채증|녹화|바디캠|고지)').hasMatch(text),
-      includeOrgManual: true,
+      includeOrgManual: includeOrgManual,
     );
 
     return SgpLegalHierarchyEngine.resolve(
       context: LegalHierarchyContext(
-        orgId: 'KR-NPA',
+        orgId: orgId,
         taskCategory: 'field_arrest',
         localGovCode: inferLocalGovCodeFromText(text),
         domainTags: domainTags,

@@ -132,7 +132,10 @@ class _HierarchyTreeTile extends StatelessWidget {
       ],
     );
 
-    if (!hasChildren && node.summary == null && node.articles.isEmpty) {
+    if (!hasChildren &&
+        node.summary == null &&
+        node.articles.isEmpty &&
+        node.linkedArticles.isEmpty) {
       return Padding(
         padding: EdgeInsets.fromLTRB(8 + depth * 10.0, 6, 8, 6),
         child: titleRow,
@@ -147,6 +150,7 @@ class _HierarchyTreeTile extends StatelessWidget {
         initiallyExpanded: initiallyExpanded,
         iconColor: SgpFieldColors.textSecondary,
         collapsedIconColor: SgpFieldColors.textSecondary,
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
         title: titleRow,
         children: [
           if (node.summary != null)
@@ -172,6 +176,43 @@ class _HierarchyTreeTile extends StatelessWidget {
                 style: TextStyle(fontSize: 8, color: color.withValues(alpha: 0.9)),
               ),
             ),
+          if (node.linkedArticles.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '준거 상위법 조문',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                      color: SgpFieldColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 3,
+                    children: [
+                      for (final link in node.linkedArticles) _ArticleLinkChip(link: link),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          if (node.source != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(
+                '출처: ${node.source}',
+                style: const TextStyle(
+                  fontSize: 7,
+                  fontStyle: FontStyle.italic,
+                  color: SgpFieldColors.textSecondary,
+                ),
+              ),
+            ),
           if (hasChildren)
             Column(
               children: [
@@ -185,6 +226,36 @@ class _HierarchyTreeTile extends StatelessWidget {
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// LV7~8 조항 → 상위법 조문 링크 칩 (레지스트리에서 상위법 제목 해석).
+class _ArticleLinkChip extends StatelessWidget {
+  const _ArticleLinkChip({required this.link});
+
+  final ArticleLink link;
+
+  @override
+  Widget build(BuildContext context) {
+    final upper = SgpLegalHierarchyRegistry.instance.nodeById(link.upperNodeId);
+    final upperTitle = upper?.title ?? link.upperNodeId;
+    final color = upper != null ? hierarchyLevelColor(upper.level) : SgpFieldColors.textSecondary;
+
+    return Tooltip(
+      message: link.note ?? '$upperTitle ${link.article}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Text(
+          '→ $upperTitle ${link.article}',
+          style: TextStyle(fontSize: 8, color: color, fontWeight: FontWeight.w500),
+        ),
       ),
     );
   }

@@ -247,4 +247,90 @@ void main() {
       expect(seoul.chain.any((n) => n.id == 'KR-LOCAL-26-ORD'), isFalse);
     });
   });
+
+  group('S4 — SgpHierarchyIngestPipeline', () {
+    test('조문 추출·정규화·중복 제거', () {
+      final articles = SgpHierarchyIngestPipeline.extractArticles(
+        '체포는 형사소송법 제200조의2 및 제 212 조에 따른다. 제212조 재언급.',
+      );
+      expect(articles, contains('제200조의2'));
+      expect(articles, contains('제212조'));
+      expect(articles.where((a) => a == '제212조').length, 1);
+    });
+
+    test('상위법 조문 링크 추론 — 문장 근접 매칭', () {
+      final result = SgpHierarchyIngestPipeline.inferArticleLinks(
+        '체포현장 압수는 형사소송법 제216조에 근거한다.\n'
+        '영상녹화는 경찰관 직무집행법 제10조의2 고지가 필요하다.',
+      );
+      expect(result.links.length, 2);
+      expect(
+        result.links.any((l) => l.upperNodeId == 'KR-LAW-CRIM-PROC' && l.article == '제216조'),
+        isTrue,
+      );
+      expect(
+        result.links.any((l) => l.upperNodeId == 'KR-LAW-POLICE-DUTY' && l.article == '제10조의2'),
+        isTrue,
+      );
+      expect(result.unresolved, isEmpty);
+    });
+
+    test('상위법 미상 조문 — unresolved 처리', () {
+      final result = SgpHierarchyIngestPipeline.inferArticleLinks('내부 지침 제5조에 따른다.');
+      expect(result.links, isEmpty);
+      expect(result.unresolved, contains('제5조'));
+    });
+
+    test('ingest — LV8 매뉴얼 노드 생성·태깅', () {
+      final report = SgpHierarchyIngestPipeline.ingest(
+        HierarchyIngestSource(
+          id: 'MANUAL-TEST-001',
+          title: '테스트 채증 매뉴얼',
+          level: LegalHierarchyLevel.manual,
+          parentId: 'ORG-NPA-EVIDENCE-GUIDE',
+          rawText: '바디캠 채증 시 경찰관 직무집행법 제10조의2 고지를 이행한다.',
+          scope: const {'org_id': 'KR-NPA', 'task_category': 'field_arrest'},
+          sourceName: 'test_manual.md',
+        ),
+      );
+
+      expect(report.node.level, LegalHierarchyLevel.manual);
+      expect(report.node.conflictCheck, isTrue);
+      expect(report.node.domainTags, contains('evidence'));
+      expect(report.node.linkedArticles.single.upperNodeId, 'KR-LAW-POLICE-DUTY');
+      expect(report.node.source, 'test_manual.md');
+      expect(report.requiresManualReview, isFalse);
+    });
+
+    test('ingest — 상위법 링크 없으면 수기 확인 경고', () {
+      final report = SgpHierarchyIngestPipeline.ingest(
+        HierarchyIngestSource(
+          id: 'ORG-TEST-002',
+          title: '근거 불명 규정',
+          level: LegalHierarchyLevel.internalRegulation,
+          parentId: 'KR-LAW-CRIM-PROC',
+          rawText: '내부 절차 제3조에 따라 처리한다.',
+          scope: const {'org_id': 'KR-NPA'},
+        ),
+      );
+      expect(report.requiresManualReview, isTrue);
+      expect(report.warnings, isNotEmpty);
+    });
+
+    test('toJson/fromJson — linked_articles 왕복', () {
+      final report = SgpHierarchyIngestPipeline.ingest(
+        HierarchyIngestSource(
+          id: 'MANUAL-TEST-003',
+          title: '왕복 매뉴얼',
+          level: LegalHierarchyLevel.manual,
+          parentId: 'ORG-NPA-INVEST-RULE',
+          rawText: '체포현장 압수는 형사소송법 제216조에 근거한다.',
+          scope: const {'org_id': 'KR-NPA', 'task_category': 'field_arrest'},
+        ),
+      );
+      final restored = LegalHierarchyNode.fromJson(report.node.toJson());
+      expect(restored.linkedArticles.single.upperNodeId, 'KR-LAW-CRIM-PROC');
+      expect(restored.linkedArticles.single.article, '제216조');
+    });
+  });
 }

@@ -85,3 +85,29 @@ class SgpSttComplianceGate {
   @visibleForTesting
   static void reset() => _acknowledgedThisSession = false;
 }
+
+/// Sprint S4 — LV 7~8 조직 규정·매뉴얼 접근 통제.
+///
+/// 보안업무규정: 조직 내부 규정(LV7)·현장 매뉴얼(LV8)은 인가된 조직
+/// 세션에서만 열람한다. 서버형(Phase 2)에서는 JWT·단말 조직 패키지로
+/// 대체되며, 온디바이스에서는 단말에 프로비저닝된 조직 ID로 판정한다.
+abstract final class SgpOrgAccessGate {
+  /// 단말에 프로비저닝된 조직 ID (기본: 경찰청). 프로비저닝 전에는 null.
+  static String? _provisionedOrgId = 'KR-NPA';
+
+  static String? get provisionedOrgId => _provisionedOrgId;
+
+  /// 단말 조직 프로비저닝 (MDM·초기 설정에서 1회 설정).
+  static void provision(String? orgId) => _provisionedOrgId = orgId;
+
+  /// 특정 조직 규정·매뉴얼 노드를 열람할 수 있는지 판정.
+  static bool canAccessOrg(String? nodeOrgId) {
+    if (nodeOrgId == null) return true;
+    if (_provisionedOrgId == null) return false;
+    return _provisionedOrgId == nodeOrgId;
+  }
+
+  /// 테스트·세션 초기화용.
+  @visibleForTesting
+  static void reset() => _provisionedOrgId = 'KR-NPA';
+}

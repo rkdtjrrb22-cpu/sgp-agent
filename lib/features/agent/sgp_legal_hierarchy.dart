@@ -45,6 +45,8 @@ class LegalHierarchyNode {
     this.articles = const [],
     this.summary,
     this.conflictCheck = false,
+    this.linkedArticles = const [],
+    this.source,
   });
 
   final String id;
@@ -59,6 +61,12 @@ class LegalHierarchyNode {
 
   /// true면 상위법(LV 1~4)과 충돌 시 ⚠️ 경고 대상.
   final bool conflictCheck;
+
+  /// Sprint S4 — LV 7~8 조항이 준거하는 상위법 조문 링크.
+  final List<ArticleLink> linkedArticles;
+
+  /// Sprint S4 — 파싱 출처(매뉴얼 파일·규정 문서·수기 시드 등).
+  final String? source;
 
   factory LegalHierarchyNode.fromJson(Map<String, dynamic> json) {
     return LegalHierarchyNode(
@@ -79,6 +87,10 @@ class LegalHierarchyNode {
           .toList(),
       summary: json['summary'] as String?,
       conflictCheck: json['conflict_check'] as bool? ?? false,
+      linkedArticles: (json['linked_articles'] as List<dynamic>? ?? [])
+          .map((e) => ArticleLink.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      source: json['source'] as String?,
     );
   }
 
@@ -93,9 +105,66 @@ class LegalHierarchyNode {
         if (articles.isNotEmpty) 'articles': articles,
         if (summary != null) 'summary': summary,
         if (conflictCheck) 'conflict_check': true,
+        if (linkedArticles.isNotEmpty)
+          'linked_articles': linkedArticles.map((e) => e.toJson()).toList(),
+        if (source != null) 'source': source,
       };
 
+  LegalHierarchyNode copyWith({
+    List<ArticleLink>? linkedArticles,
+    List<String>? domainTags,
+    List<String>? articles,
+    String? summary,
+    String? source,
+  }) {
+    return LegalHierarchyNode(
+      id: id,
+      level: level,
+      title: title,
+      parentId: parentId,
+      scope: scope,
+      filterKeys: filterKeys,
+      domainTags: domainTags ?? this.domainTags,
+      articles: articles ?? this.articles,
+      summary: summary ?? this.summary,
+      conflictCheck: conflictCheck,
+      linkedArticles: linkedArticles ?? this.linkedArticles,
+      source: source ?? this.source,
+    );
+  }
+
   String get levelBadge => 'LV${level.value} ${level.label}';
+}
+
+/// Sprint S4 — LV 7~8 조항 → 상위법(LV 1~4) 조문 링크.
+class ArticleLink {
+  const ArticleLink({
+    required this.upperNodeId,
+    required this.article,
+    this.note,
+  });
+
+  /// 준거 상위법 노드 ID (예: KR-LAW-CRIM-PROC).
+  final String upperNodeId;
+
+  /// 상위법 조문 (예: 제216조).
+  final String article;
+
+  final String? note;
+
+  factory ArticleLink.fromJson(Map<String, dynamic> json) {
+    return ArticleLink(
+      upperNodeId: json['upper_node_id'] as String,
+      article: json['article'] as String,
+      note: json['note'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'upper_node_id': upperNodeId,
+        'article': article,
+        if (note != null) 'note': note,
+      };
 }
 
 /// 상·하위법 충돌 경고.
@@ -677,4 +746,181 @@ Set<String> domainTagsForIncidentKey(String incidentJsonKey) {
     'civil_dispute' => {'criminal', 'procedure', 'civil'},
     _ => {'criminal', 'procedure'},
   };
+}
+
+// ---------------------------------------------------------------------------
+// Sprint S4 — LV 7~8 조직 규정·매뉴얼 파싱·조문 태깅 파이프라인
+// ---------------------------------------------------------------------------
+
+/// 조직 규정·매뉴얼 원문(1건) 파싱 입력.
+class HierarchyIngestSource {
+  const HierarchyIngestSource({
+    required this.id,
+    required this.title,
+    required this.level,
+    required this.parentId,
+    required this.rawText,
+    this.scope = const {},
+    this.sourceName,
+  });
+
+  final String id;
+  final String title;
+  final LegalHierarchyLevel level;
+  final String parentId;
+  final String rawText;
+  final Map<String, String> scope;
+  final String? sourceName;
+}
+
+/// 파싱 리포트 — 노드 + 미해결 경고.
+class HierarchyIngestReport {
+  const HierarchyIngestReport({
+    required this.node,
+    required this.unresolvedArticles,
+    required this.warnings,
+  });
+
+  final LegalHierarchyNode node;
+
+  /// 상위법 노드로 연결하지 못한 조문 (수기 확인 대상).
+  final List<String> unresolvedArticles;
+  final List<String> warnings;
+
+  bool get requiresManualReview => unresolvedArticles.isNotEmpty || warnings.isNotEmpty;
+}
+
+/// LV 7~8 규정·매뉴얼 텍스트 → 조문·도메인 태그·상위법 링크 추출.
+///
+/// 온디바이스 규칙 기반 파서(경량). 서버형 임베딩(Phase 2) 이전의 1차 태깅.
+abstract final class SgpHierarchyIngestPipeline {
+  static final RegExp _articlePattern =
+      RegExp(r'제\s?\d+조(?:의\s?\d+)?');
+
+  /// 상위법 노드 매칭용 키워드 → 노드 ID (레지스트리 로드 후 확장 가능).
+  static const _upperLawKeywords = <String, String>{
+    '형사소송법': 'KR-LAW-CRIM-PROC',
+    '형소법': 'KR-LAW-CRIM-PROC',
+    '형법': 'KR-LAW-CRIMINAL',
+    '경찰관 직무집행법': 'KR-LAW-POLICE-DUTY',
+    '직무집행법': 'KR-LAW-POLICE-DUTY',
+    '직집법': 'KR-LAW-POLICE-DUTY',
+    '가정폭력': 'KR-LAW-DV',
+    '동물보호법': 'KR-LAW-ANIMAL',
+    '도로교통법': 'KR-LAW-TRAFFIC',
+    '스토킹': 'KR-LAW-STALKING',
+    '정보통신망': 'KR-LAW-INFO-COMM',
+  };
+
+  static const _domainKeywords = <String, String>{
+    '채증': 'evidence',
+    '녹화': 'evidence',
+    '바디캠': 'evidence',
+    '압수': 'procedure',
+    '체포': 'procedure',
+    '구속': 'procedure',
+    '수사': 'procedure',
+    '고지': 'evidence',
+    '디지털': 'evidence',
+    '포렌식': 'evidence',
+  };
+
+  /// 텍스트에서 조문 표기 추출 (중복 제거·정규화).
+  static List<String> extractArticles(String text) {
+    final matches = _articlePattern.allMatches(text);
+    final seen = <String>{};
+    final result = <String>[];
+    for (final m in matches) {
+      final normalized = m.group(0)!.replaceAll(RegExp(r'\s'), '');
+      if (seen.add(normalized)) result.add(normalized);
+    }
+    return result;
+  }
+
+  /// 텍스트에서 도메인 태그 추출.
+  static Set<String> extractDomainTags(String text) {
+    final tags = <String>{};
+    for (final entry in _domainKeywords.entries) {
+      if (text.contains(entry.key)) tags.add(entry.value);
+    }
+    if (tags.isEmpty) tags.add('procedure');
+    tags.add('criminal');
+    return tags;
+  }
+
+  /// 문장 단위로 조문↔상위법 링크 추론.
+  static ({List<ArticleLink> links, List<String> unresolved}) inferArticleLinks(String text) {
+    final links = <ArticleLink>[];
+    final unresolved = <String>[];
+    final seen = <String>{};
+
+    // 문장(줄·마침표·세미콜론) 단위로 근접 매칭.
+    final sentences = text.split(RegExp(r'[\n.;。]'));
+    for (final sentence in sentences) {
+      final articles = extractArticles(sentence);
+      if (articles.isEmpty) continue;
+
+      String? upperNodeId;
+      for (final entry in _upperLawKeywords.entries) {
+        if (sentence.contains(entry.key)) {
+          upperNodeId = entry.value;
+          break;
+        }
+      }
+
+      for (final article in articles) {
+        final key = '${upperNodeId ?? '?'}|$article';
+        if (!seen.add(key)) continue;
+        if (upperNodeId != null) {
+          links.add(ArticleLink(upperNodeId: upperNodeId, article: article));
+        } else {
+          unresolved.add(article);
+        }
+      }
+    }
+
+    return (links: links, unresolved: unresolved);
+  }
+
+  /// 규정·매뉴얼 원문 → 태깅된 위계 노드.
+  static HierarchyIngestReport ingest(HierarchyIngestSource src) {
+    final warnings = <String>[];
+    if (src.level.value < 7) {
+      warnings.add('LV${src.level.value}는 파싱 파이프라인 대상(LV7~8)이 아닙니다.');
+    }
+
+    final articleResult = inferArticleLinks(src.rawText);
+    final tags = extractDomainTags(src.rawText);
+    final allArticles = extractArticles(src.rawText);
+
+    // 상위법 링크가 하나도 없으면 상위법 근거 불명 — 충돌 경고 대상.
+    final conflictCheck = src.level.value >= 7;
+    if (articleResult.links.isEmpty) {
+      warnings.add('상위법 조문 링크를 찾지 못했습니다 — 수기 확인 필요.');
+    }
+
+    final node = LegalHierarchyNode(
+      id: src.id,
+      level: src.level,
+      title: src.title,
+      parentId: src.parentId,
+      scope: src.scope,
+      filterKeys: [
+        if (src.scope['org_id'] != null) 'org_id:${src.scope['org_id']}',
+        if (src.scope['task_category'] != null)
+          'task_category:${src.scope['task_category']}',
+      ],
+      domainTags: tags.toList(),
+      articles: allArticles,
+      conflictCheck: conflictCheck,
+      linkedArticles: articleResult.links,
+      source: src.sourceName,
+    );
+
+    return HierarchyIngestReport(
+      node: node,
+      unresolvedArticles: articleResult.unresolved,
+      warnings: warnings,
+    );
+  }
 }

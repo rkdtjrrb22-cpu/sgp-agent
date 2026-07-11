@@ -146,6 +146,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       ruleResult: _ruleResult,
       advancedAnalysis: _advancedAnalysis,
       timeline: _procedureTimeline,
+      orgId: SgpOrgAccessGate.provisionedOrgId,
     );
     setState(() => _quantumComparison = comparison);
   }
