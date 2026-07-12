@@ -735,5 +735,97 @@
     "parent_id": "CUSTODY-MGMT",
     "domain_tags": ["medical_custody", "guard", "two_officer"],
     "summary": "2인 1조 교대 계호·도주 방지 배치"
+  },
+  {
+    "id": "KR-LAW-DVPA",
+    "level": 5,
+    "title": "가정폭력처벌법",
+    "parent_id": "KR-LAW-ROOT",
+    "domain_tags": ["domestic_violence", "temp_measure"],
+    "summary": "긴급임시조치·임시조치·피해자 보호"
+  },
+  {
+    "id": "KR-DV-TEMP-ISOLATION",
+    "level": 6,
+    "title": "긴급임시조치 — 피해자·가해자 격리",
+    "parent_id": "KR-LAW-DVPA",
+    "domain_tags": ["domestic_violence", "isolation"]
+  },
+  {
+    "id": "KR-DV-TEMP-APPROACH-100M",
+    "level": 6,
+    "title": "긴급임시조치 — 100m 접근금지",
+    "parent_id": "KR-LAW-DVPA",
+    "domain_tags": ["domestic_violence", "approach_ban"]
+  },
+  {
+    "id": "KR-DV-TEMP-TELECOM-BAN",
+    "level": 6,
+    "title": "긴급임시조치 — 전기통신 접근금지",
+    "parent_id": "KR-LAW-DVPA",
+    "domain_tags": ["domestic_violence", "telecom_ban"]
+  },
+  {
+    "id": "KR-LAW-CHILD-ABUSE",
+    "level": 5,
+    "title": "아동학대범죄의 처벌 등에 관한 특례법",
+    "parent_id": "KR-LAW-ROOT",
+    "domain_tags": ["child_abuse", "mandatory_report"]
+  },
+  {
+    "id": "KR-LAW-MHW-50",
+    "level": 5,
+    "title": "정신건강복지법 제50조(응급입원)",
+    "parent_id": "KR-LAW-ROOT",
+    "domain_tags": ["mental_health", "emergency_admission"]
+  },
+  {
+    "id": "KR-MHW-EMERGENCY-ADMISSION",
+    "level": 6,
+    "title": "72시간 응급입원 절차",
+    "parent_id": "KR-LAW-MHW-50",
+    "domain_tags": ["mental_health", "72h"]
+  },
+  {
+    "id": "KR-MHW-SELF-HARM",
+    "level": 6,
+    "title": "자해 위험 고지",
+    "parent_id": "KR-LAW-MHW-50",
+    "domain_tags": ["mental_health", "self_harm"]
+  },
+  {
+    "id": "KR-MHW-HARM-OTHERS",
+    "level": 6,
+    "title": "타해 위험 고지",
+    "parent_id": "KR-LAW-MHW-50",
+    "domain_tags": ["mental_health", "harm_others"]
+  },
+  {
+    "id": "KR-LAW-NARCOTICS",
+    "level": 5,
+    "title": "마약류관리법",
+    "parent_id": "KR-LAW-ROOT",
+    "domain_tags": ["narcotics", "forced_measure"]
+  },
+  {
+    "id": "KR-NARC-RAPID-TEST",
+    "level": 6,
+    "title": "현장 간이시약 검사",
+    "parent_id": "KR-LAW-NARCOTICS",
+    "domain_tags": ["narcotics", "rapid_test"]
+  },
+  {
+    "id": "KR-NARC-FORCED-MEASURE",
+    "level": 6,
+    "title": "검사 거부 시 강제처분",
+    "parent_id": "KR-LAW-NARCOTICS",
+    "domain_tags": ["narcotics", "forced"]
+  },
+  {
+    "id": "KR-NARC-WARRANT",
+    "level": 6,
+    "title": "감정처분허가장·압수수색영장",
+    "parent_id": "KR-LAW-NARCOTICS",
+    "domain_tags": ["narcotics", "warrant"]
   }
 ]

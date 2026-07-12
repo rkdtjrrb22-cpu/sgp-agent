@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "model": "bge-small-ko-v1.5",
-  "target_corpus_size": 700,
+  "target_corpus_size": 750,
   "precedents": [
     {
       "id": "SC-2024-DOG-EMERGENCY",
@@ -542,6 +542,166 @@
       "domain": "seizure_list_omission",
       "holding": "압수물 목록을 고의로 누락하거나 압수조서를 허위 작성한 경우 허위공문서작성·증거인멸 위험",
       "keywords": ["압수목록누락", "압수조서", "허위작성", "디지털증거"]
+    },
+    {
+      "id": "SC-2024-DV-TEMP-ISOLATION",
+      "court": "대법원",
+      "case_no": "2024도6001",
+      "article_refs": ["가정폭력처벌법 제7조", "제19조"],
+      "ontology_nodes": ["KR-LAW-DVPA", "KR-DV-TEMP-ISOLATION"],
+      "domain": "domestic_violence_temp_measure",
+      "holding": "가정폭력 현장에서 피해자·가해자 즉시 격리는 긴급임시조치의 핵심이며 교차 진술·2차 피해 방지를 위해 필수",
+      "keywords": ["가정폭력", "격리", "피해자보호", "긴급임시조치", "분리"]
+    },
+    {
+      "id": "SC-2024-DV-APPROACH-100M",
+      "court": "대법원",
+      "case_no": "2024도6002",
+      "article_refs": ["가정폭력처벌법 제19조"],
+      "ontology_nodes": ["KR-LAW-DVPA", "KR-DV-TEMP-APPROACH-100M"],
+      "domain": "domestic_violence_approach_ban",
+      "holding": "100m 이내 접근금지 위반 시 가정폭력처벌법상 형사처벌 대상이며 반복 위반은 가중",
+      "keywords": ["100m", "접근금지", "가정폭력", "위반", "형사처벌"]
+    },
+    {
+      "id": "SC-2024-DV-TELECOM-BAN",
+      "court": "서울고법",
+      "case_no": "2024노6003",
+      "article_refs": ["가정폭력처벌법 제19조"],
+      "ontology_nodes": ["KR-LAW-DVPA", "KR-DV-TEMP-TELECOM-BAN"],
+      "domain": "domestic_violence_telecom_ban",
+      "holding": "전기통신 이용 접근금지 위반(전화·문자·SNS)은 임시조치 위반으로 처벌",
+      "keywords": ["전기통신", "연락금지", "문자", "전화", "SNS", "접근금지"]
+    },
+    {
+      "id": "SC-2024-CA-EMERGENCY",
+      "court": "대법원",
+      "case_no": "2024도6004",
+      "article_refs": ["아동학대범죄의 처벌 등에 관한 특례법 제4조"],
+      "ontology_nodes": ["KR-LAW-CHILD-ABUSE", "KR-DV-TEMP-ISOLATION"],
+      "domain": "child_abuse_emergency",
+      "holding": "아동학대 정황 발견 시 즉시 격리·신고 의무가 있으며 방임·유기는 형사처벌 대상",
+      "keywords": ["아동학대", "방임", "유기", "신체학대", "긴급보호"]
+    },
+    {
+      "id": "SC-2024-CA-FINE",
+      "court": "대법원",
+      "case_no": "2024도6005",
+      "article_refs": ["아동학대범죄의 처벌 등에 관한 특례법"],
+      "ontology_nodes": ["KR-LAW-CHILD-ABUSE"],
+      "domain": "child_abuse_fine",
+      "holding": "아동학대 신고 의무 위반 등 일부 행위는 과태료·형사 병과 가능",
+      "keywords": ["아동학대", "과태료", "신고의무", "위반"]
+    },
+    {
+      "id": "SC-2024-DV-DEADLINE",
+      "court": "대법원",
+      "case_no": "2024도6006",
+      "article_refs": ["가정폭력처벌법 제19조"],
+      "ontology_nodes": ["KR-LAW-DVPA", "KR-DV-TEMP-APPROACH-100M"],
+      "domain": "domestic_violence_deadline",
+      "holding": "긴급임시조치 시한 만료 전 연장·법원 임시조치 신청 없이 조치 유지는 위법",
+      "keywords": ["시한", "만료", "연장", "임시조치", "법원"]
+    },
+    {
+      "id": "SC-2024-MHW-72H",
+      "court": "대법원",
+      "case_no": "2024도6101",
+      "article_refs": ["정신건강복지법 제50조"],
+      "ontology_nodes": ["KR-LAW-MHW-50", "KR-MHW-EMERGENCY-ADMISSION"],
+      "domain": "mental_health_emergency_admission",
+      "holding": "자·타해 위험 정신질환자는 의사·경찰관 동의 하 72시간 한시 응급입원 가능",
+      "keywords": ["응급입원", "72시간", "정신건강복지법", "제50조", "자해", "타해"]
+    },
+    {
+      "id": "SC-2024-MHW-CONSENT",
+      "court": "대법원",
+      "case_no": "2024도6102",
+      "article_refs": ["정신건강복지법 제50조"],
+      "ontology_nodes": ["KR-LAW-MHW-50", "KR-MHW-EMERGENCY-ADMISSION"],
+      "domain": "mental_health_consent",
+      "holding": "응급입원 시 의사와 경찰관(또는 소방·군) 동의가 모두 필요하며 동의 없는 구금은 위법",
+      "keywords": ["의사동의", "경찰관동의", "응급입원", "위법", "불법구금"]
+    },
+    {
+      "id": "SC-2024-MHW-TRANSFER",
+      "court": "서울고법",
+      "case_no": "2024노6103",
+      "article_refs": ["정신건강복지법 제50조"],
+      "ontology_nodes": ["KR-MHW-EMERGENCY-ADMISSION", "KR-MHW-SELF-HARM"],
+      "domain": "mental_health_transfer",
+      "holding": "응급입원 이송 중 자·타해 재발 위험 시 2인 계호·구급대 연계 필수",
+      "keywords": ["이송", "구급차", "자해", "계호", "병원이송"]
+    },
+    {
+      "id": "SC-2024-MHW-ILLEGALITY",
+      "court": "대법원",
+      "case_no": "2024도6104",
+      "article_refs": ["정신건강복지법 제50조", "형법 제124조"],
+      "ontology_nodes": ["KR-LAW-MHW-50", "KR-MHW-HARM-OTHERS"],
+      "domain": "mental_health_illegality_defense",
+      "holding": "응급입원 요건 미충족 입원은 위법성 조각·국가배상 대상이 될 수 있음",
+      "keywords": ["위법성", "응급입원", "요건미충족", "국가배상", "불법구금"]
+    },
+    {
+      "id": "SC-2024-MHW-EXTEND",
+      "court": "대법원",
+      "case_no": "2024도6105",
+      "article_refs": ["정신건강복지법 제50조"],
+      "ontology_nodes": ["KR-MHW-EMERGENCY-ADMISSION"],
+      "domain": "mental_health_72h_extend",
+      "holding": "72시간 응급입원 만료 후 연장 입원은 정신건강의학과 전문의 재평가·절차 필요",
+      "keywords": ["72시간", "연장입원", "만료", "전문의", "재평가"]
+    },
+    {
+      "id": "SC-2024-NARC-RAPID",
+      "court": "대법원",
+      "case_no": "2024도6201",
+      "article_refs": ["마약류관리법 제45조"],
+      "ontology_nodes": ["KR-LAW-NARCOTICS", "KR-NARC-RAPID-TEST"],
+      "domain": "narcotics_rapid_test",
+      "holding": "마약류 혐의 reasonable suspicion 시 현장 간이시약 검사 제안·동의 확보가 우선",
+      "keywords": ["간이시약", "마약", "검사", "현장", "혐의정황"]
+    },
+    {
+      "id": "SC-2024-NARC-REFUSAL",
+      "court": "대법원",
+      "case_no": "2024도6202",
+      "article_refs": ["마약류관리법 제45조", "형사소송법"],
+      "ontology_nodes": ["KR-LAW-NARCOTICS", "KR-NARC-FORCED-MEASURE"],
+      "domain": "narcotics_refusal",
+      "holding": "간이시약 검사 거부 시 감정처분허가장·압수수색영장 신청 등 강제처분 절차 진행",
+      "keywords": ["검사거부", "거부", "강제처분", "감정처분", "허가장"]
+    },
+    {
+      "id": "SC-2024-NARC-WARRANT",
+      "court": "대법원",
+      "case_no": "2024도6203",
+      "article_refs": ["마약류관리법", "형사소송법 제106조"],
+      "ontology_nodes": ["KR-NARC-WARRANT", "KR-NARC-FORCED-MEASURE"],
+      "domain": "narcotics_warrant",
+      "holding": "압수수색영장·감정처분허가장 신청 시 혐의 정황·거부 경위·채취 필요성 소명 필수",
+      "keywords": ["압수수색영장", "감정처분허가장", "영장신청", "소명", "채취"]
+    },
+    {
+      "id": "SC-2024-NARC-CHAIN",
+      "court": "서울고법",
+      "case_no": "2024노6204",
+      "article_refs": ["마약류관리법"],
+      "ontology_nodes": ["KR-NARC-WARRANT", "KR-LAW-NARCOTICS"],
+      "domain": "narcotics_chain_of_custody",
+      "holding": "마약류 채취·봉인·인도 과정 chain of custody 미비 시 증거능력 배제 위험",
+      "keywords": ["채취", "봉인", "chain", "증거능력", "인도"]
+    },
+    {
+      "id": "SC-2024-NARC-TIMELINE",
+      "court": "대법원",
+      "case_no": "2024도6205",
+      "article_refs": ["마약류관리법 제45조"],
+      "ontology_nodes": ["KR-NARC-FORCED-MEASURE"],
+      "domain": "narcotics_timeline",
+      "holding": "검사 거부 후 지연된 영장 신청은 증거 훼손·위법수집증거 논란 유발",
+      "keywords": ["거부", "영장", "지연", "시한", "강제처분"]
     }
   ]
 }

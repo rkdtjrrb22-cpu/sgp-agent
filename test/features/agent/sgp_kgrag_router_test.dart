@@ -87,15 +87,15 @@ void main() {
       expect(kgragPack.model, 'bge-small-ko-v1.5');
     });
 
-    test('SgpKgragLoader — 700종 벡터 인덱스 구축', () {
-      expect(vectorStore.corpusSize, 700);
+    test('SgpKgragLoader — 750종 벡터 인덱스 구축', () {
+      expect(vectorStore.corpusSize, 750);
     });
 
     test('SgpVectorStore — JSON export/import 라운드트립', () {
       final exported = vectorStore.exportJson();
       final store2 = SgpVectorStore();
       store2.importJson(exported);
-      expect(store2.corpusSize, 700);
+      expect(store2.corpusSize, 750);
     });
 
     test('SgpKgragRouter — 빈 쿼리 null', () {
