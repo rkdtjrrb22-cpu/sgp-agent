@@ -10,6 +10,7 @@ import 'sgp_quantum_legal_engine.dart';
 import 'sgp_official_document_drafts.dart';
 import 'sgp_medical_custody_engine.dart';
 import 'sgp_kgrag_router.dart';
+import '../control/sgp_anti_corruption_filter.dart';
 
 /// 보고서 생성에 필요한 현장 세션 데이터.
 class SgpReportInput {
@@ -124,6 +125,13 @@ class SgpReportGenerator {
     if (input.kgragReasoning != null) {
       _section(buf, '6-A. KG-RAG 하이브리드 추론',
           _buildKgragSection(input.kgragReasoning!));
+    }
+    final antiCorruption = SgpAntiCorruptionFilter.assess(
+      documentText: input.rawText,
+    );
+    if (!antiCorruption.isClean) {
+      _section(buf, '6-B. 사법 무결성·감찰 통제 (Anti-Corruption)',
+          _buildAntiCorruptionSection(antiCorruption));
     }
     final remaining =
         precedents.where((p) => !inlineCited.contains(p.id)).toList();
@@ -471,6 +479,24 @@ class SgpReportGenerator {
 
     lines.add('');
     lines.add('> ${kgrag.promptContext.split('\n').take(6).join('\n> ')}');
+    return lines;
+  }
+
+  /// 감찰 사전 리스크 — 직무범·신분범 저촉 위험 단락.
+  static List<String> _buildAntiCorruptionSection(
+    AntiCorruptionAssessment assessment,
+  ) {
+    final lines = <String>[
+      if (assessment.hasCritical)
+        '- **⚠ 치명 위험**: ${assessment.disciplineWarning}',
+    ];
+    for (final f in assessment.flags) {
+      final tag = f.isCritical ? 'CRITICAL' : 'WARNING';
+      lines.add('- **[$tag] ${f.title}**');
+      lines.add('  - 형사 근거: ${f.legalBasis.join(", ")}');
+      lines.add('  - 징계 근거: ${f.disciplineBasis.join(", ")}');
+      lines.add('  - ${f.message}');
+    }
     return lines;
   }
 

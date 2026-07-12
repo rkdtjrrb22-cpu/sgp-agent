@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "model": "bge-small-ko-v1.5",
-  "target_corpus_size": 500,
+  "target_corpus_size": 700,
   "precedents": [
     {
       "id": "SC-2024-DOG-EMERGENCY",
@@ -252,6 +252,296 @@
       "domain": "animal_penalty",
       "holding": "동물 학대·관리의무 위반에 대한 형사처벌 규정이 강화되는 추세",
       "keywords": ["학대", "벌칙", "동물", "관리의무"]
+    },
+    {
+      "id": "SC-2024-TRAFFIC-SIGNAL",
+      "court": "대법원",
+      "case_no": "2024도1100",
+      "article_refs": ["교통사고처리특례법 제3조 제2항", "도로교통법 제5조"],
+      "ontology_nodes": ["KR-LAW-TSA", "KR-TSA-12-GROSS"],
+      "domain": "traffic_gross_negligence",
+      "holding": "신호위반으로 인한 교통사고는 교특법 제3조 제2항 12대 중과실에 해당하여 종합보험 가입·합의와 무관하게 형사 입건 대상",
+      "keywords": ["신호위반", "12대 중과실", "교통사고", "교특법", "형사입건"]
+    },
+    {
+      "id": "SC-2024-TRAFFIC-CENTERLINE",
+      "court": "대법원",
+      "case_no": "2024도1101",
+      "article_refs": ["교통사고처리특례법 제3조 제2항"],
+      "ontology_nodes": ["KR-LAW-TSA", "KR-TSA-12-GROSS"],
+      "domain": "traffic_gross_negligence",
+      "holding": "중앙선 침범 사고는 12대 중과실로서 공소권 없음 대상에서 제외되어 형사처벌을 면할 수 없음",
+      "keywords": ["중앙선침범", "12대 중과실", "공소권", "형사처벌"]
+    },
+    {
+      "id": "SC-2023-TRAFFIC-INSURANCE",
+      "court": "대법원",
+      "case_no": "2023도2200",
+      "article_refs": ["교통사고처리특례법 제3조 제2항", "제4조"],
+      "ontology_nodes": ["KR-LAW-TSA"],
+      "domain": "traffic_no_prosecution",
+      "holding": "종합보험에 가입되고 12대 중과실에 해당하지 않는 단순 과실 사고는 공소권 없음으로 불입건 처리",
+      "keywords": ["종합보험", "공소권없음", "합의", "단순과실", "불입건"]
+    },
+    {
+      "id": "SC-2024-TRAFFIC-DUI",
+      "court": "대법원",
+      "case_no": "2024도2201",
+      "article_refs": ["교통사고처리특례법 제3조 제2항", "도로교통법 제44조"],
+      "ontology_nodes": ["KR-LAW-TSA", "KR-TSA-12-GROSS", "KR-LAW-TRAFFIC"],
+      "domain": "traffic_gross_negligence",
+      "holding": "음주운전 교통사고는 12대 중과실로 종합보험 가입 여부와 무관하게 형사 입건되며 가중 처벌",
+      "keywords": ["음주운전", "12대 중과실", "가중처벌", "교통사고"]
+    },
+    {
+      "id": "SC-2023-TRAFFIC-SCHOOLZONE",
+      "court": "대법원",
+      "case_no": "2023도2202",
+      "article_refs": ["교통사고처리특례법 제3조 제2항", "도로교통법 제12조"],
+      "ontology_nodes": ["KR-LAW-TSA", "KR-TSA-12-GROSS"],
+      "domain": "traffic_gross_negligence",
+      "holding": "어린이보호구역 내 안전운전의무 위반 사고는 12대 중과실에 준하여 엄중 처벌",
+      "keywords": ["어린이보호구역", "스쿨존", "12대 중과실", "안전운전"]
+    },
+    {
+      "id": "SC-2024-TRAFFIC-HITRUN",
+      "court": "대법원",
+      "case_no": "2024도2203",
+      "article_refs": ["특정범죄가중법 제5조의3", "교통사고처리특례법 제3조"],
+      "ontology_nodes": ["KR-LAW-TSA"],
+      "domain": "traffic_hit_and_run",
+      "holding": "사고 후 구호조치 없이 도주한 경우 뺑소니(도주치상)로 가중 처벌되며 공소권 없음 적용 불가",
+      "keywords": ["뺑소니", "도주치상", "구호조치", "특가법"]
+    },
+    {
+      "id": "SC-2023-TRAFFIC-PEDESTRIAN",
+      "court": "서울중앙지법",
+      "case_no": "2023고단3300",
+      "article_refs": ["교통사고처리특례법 제3조 제2항"],
+      "ontology_nodes": ["KR-LAW-TSA", "KR-TSA-12-GROSS"],
+      "domain": "traffic_gross_negligence",
+      "holding": "횡단보도 보행자 보호의무 위반 사고는 12대 중과실로 형사 입건 대상",
+      "keywords": ["횡단보도", "보행자보호", "12대 중과실"]
+    },
+    {
+      "id": "SC-2024-TRAFFIC-UNLICENSED",
+      "court": "대법원",
+      "case_no": "2024도2204",
+      "article_refs": ["교통사고처리특례법 제3조 제2항", "도로교통법 제43조"],
+      "ontology_nodes": ["KR-LAW-TSA", "KR-TSA-12-GROSS"],
+      "domain": "traffic_gross_negligence",
+      "holding": "무면허운전 중 발생한 교통사고는 12대 중과실로 종합보험 가입과 무관하게 형사 처벌",
+      "keywords": ["무면허", "12대 중과실", "교통사고", "형사처벌"]
+    },
+    {
+      "id": "SC-2024-STALK-PERSIST",
+      "court": "대법원",
+      "case_no": "2024도3300",
+      "article_refs": ["스토킹처벌법 제2조", "제18조"],
+      "ontology_nodes": ["KR-LAW-STALKING", "KR-STALK-PERSISTENCE"],
+      "domain": "stalking_persistence",
+      "holding": "스토킹 범죄는 지속적·반복적으로 상대방에게 불안감·공포심을 일으키는 행위로서 반복성 요건 충족 시 성립",
+      "keywords": ["스토킹", "지속성", "반복성", "불안감", "공포심"]
+    },
+    {
+      "id": "SC-2024-STALK-PROVISIONAL",
+      "court": "대법원",
+      "case_no": "2024도3301",
+      "article_refs": ["스토킹처벌법 제9조"],
+      "ontology_nodes": ["KR-LAW-STALKING", "KR-STALK-PROVISIONAL"],
+      "domain": "stalking_provisional",
+      "holding": "잠정조치로 유치장 유치(제4호)를 명할 수 있으며 재발 우려와 피해자 보호 필요성이 인용 기준",
+      "keywords": ["잠정조치", "유치장", "유치", "재발우려", "피해자보호"]
+    },
+    {
+      "id": "SC-2023-STALK-EMERGENCY",
+      "court": "대법원",
+      "case_no": "2023도3302",
+      "article_refs": ["스토킹처벌법 제3조", "제4조"],
+      "ontology_nodes": ["KR-LAW-STALKING", "KR-STALK-EMERGENCY"],
+      "domain": "stalking_emergency",
+      "holding": "응급조치·긴급응급조치는 현장에서 즉시 행하며 접근금지·통신금지를 포함",
+      "keywords": ["응급조치", "긴급응급조치", "접근금지", "통신금지"]
+    },
+    {
+      "id": "SC-2024-STALK-DISMISS",
+      "court": "서울중앙지법",
+      "case_no": "2024고단3303",
+      "article_refs": ["스토킹처벌법 제9조"],
+      "ontology_nodes": ["KR-LAW-STALKING", "KR-STALK-PROVISIONAL"],
+      "domain": "stalking_provisional_dismiss",
+      "holding": "일회성 접촉으로 반복성·지속성이 인정되지 않으면 잠정조치 신청이 기각될 수 있음",
+      "keywords": ["잠정조치", "기각", "일회성", "반복성 결여"]
+    },
+    {
+      "id": "SC-2024-STALK-DIGITAL",
+      "court": "대법원",
+      "case_no": "2024도3304",
+      "article_refs": ["스토킹처벌법 제2조"],
+      "ontology_nodes": ["KR-LAW-STALKING", "KR-STALK-PERSISTENCE"],
+      "domain": "stalking_persistence",
+      "holding": "정보통신망을 이용한 반복적 메시지·게시 행위도 스토킹 행위에 포함",
+      "keywords": ["온라인스토킹", "문자", "SNS", "반복발송"]
+    },
+    {
+      "id": "SC-2023-STALK-PROTECTION",
+      "court": "대법원",
+      "case_no": "2023도3305",
+      "article_refs": ["스토킹처벌법 제3조"],
+      "ontology_nodes": ["KR-LAW-STALKING", "KR-STALK-EMERGENCY"],
+      "domain": "stalking_victim_protection",
+      "holding": "피해자 신변보호를 위한 스마트워치 지급·순찰 강화 등 신변보호조치 병행",
+      "keywords": ["신변보호", "스마트워치", "순찰", "피해자"]
+    },
+    {
+      "id": "SC-2024-STALK-INTIMATE",
+      "court": "대법원",
+      "case_no": "2024도3306",
+      "article_refs": ["스토킹처벌법 제2조", "가정폭력처벌법"],
+      "ontology_nodes": ["KR-LAW-STALKING"],
+      "domain": "stalking_intimate_partner",
+      "holding": "연인·전 배우자 관계에서의 반복적 접근·감시는 스토킹처벌법과 가정폭력처벌법이 경합 적용될 수 있음",
+      "keywords": ["연인", "이별", "전배우자", "접근", "감시"]
+    },
+    {
+      "id": "SC-2024-JUV-CHOKBEOP",
+      "court": "대법원",
+      "case_no": "2024도4400",
+      "article_refs": ["소년법 제4조", "형법 제9조"],
+      "ontology_nodes": ["KR-LAW-JUVENILE", "KR-JUV-CHOKBEOP"],
+      "domain": "juvenile_chokbeop",
+      "holding": "10세 이상 14세 미만 촉법소년은 형사책임이 없어 소년부에 송치하여 보호처분을 검토",
+      "keywords": ["촉법소년", "소년부송치", "보호처분", "형사책임"]
+    },
+    {
+      "id": "SC-2024-JUV-BEOMBEOP",
+      "court": "대법원",
+      "case_no": "2024도4401",
+      "article_refs": ["소년법 제4조", "형법 제9조"],
+      "ontology_nodes": ["KR-LAW-JUVENILE", "KR-JUV-BEOMBEOP"],
+      "domain": "juvenile_beombeop",
+      "holding": "10세 미만 범법소년은 형사·보호처분 대상이 아니며 보호자 인계·복지 연계",
+      "keywords": ["범법소년", "10세미만", "보호자인계", "복지연계"]
+    },
+    {
+      "id": "SC-2024-JUV-CRIMINAL",
+      "court": "대법원",
+      "case_no": "2024도4402",
+      "article_refs": ["소년법 제4조", "제49조"],
+      "ontology_nodes": ["KR-LAW-JUVENILE", "KR-JUV-CRIMINAL"],
+      "domain": "juvenile_criminal",
+      "holding": "14세 이상 19세 미만 범죄소년은 형사처벌 또는 소년부 송치 중 검사가 선의로 결정",
+      "keywords": ["범죄소년", "14세이상", "검사선의주의", "소년부송치"]
+    },
+    {
+      "id": "SC-2023-JUV-PROTECTION",
+      "court": "서울가정법원",
+      "case_no": "2023푸4403",
+      "article_refs": ["소년법 제32조"],
+      "ontology_nodes": ["KR-LAW-JUVENILE", "KR-JUV-PROTECTIVE-ORDER"],
+      "domain": "juvenile_protective_order",
+      "holding": "보호처분 1호부터 10호까지 소년의 환경·성행을 고려하여 부과하며 감호위탁·소년원 송치 포함",
+      "keywords": ["보호처분", "1호", "10호", "소년원", "감호위탁"]
+    },
+    {
+      "id": "SC-2024-JUV-ENV-SURVEY",
+      "court": "서울가정법원",
+      "case_no": "2024푸4404",
+      "article_refs": ["소년법 제11조"],
+      "ontology_nodes": ["KR-LAW-JUVENILE", "KR-JUV-PROTECTIVE-ORDER"],
+      "domain": "juvenile_environment_survey",
+      "holding": "소년 조사관의 환경 조사 결과 보호조치 필요성이 인정되면 보호처분 의견을 제시",
+      "keywords": ["환경조사", "보호조치", "소년조사관", "성행"]
+    },
+    {
+      "id": "SC-2024-JUV-DIVERSION",
+      "court": "대법원",
+      "case_no": "2024도4405",
+      "article_refs": ["소년법 제4조"],
+      "ontology_nodes": ["KR-LAW-JUVENILE", "KR-JUV-CHOKBEOP"],
+      "domain": "juvenile_diversion",
+      "holding": "촉법소년 사건은 경찰서장이 직접 소년부에 송치하여야 하며 검찰 경유 없이 처리",
+      "keywords": ["촉법소년", "경찰서장송치", "소년부", "직접송치"]
+    },
+    {
+      "id": "SC-2024-CORRUPT-DERELICTION",
+      "court": "대법원",
+      "case_no": "2024도5500",
+      "article_refs": ["형법 제122조"],
+      "ontology_nodes": ["KR-CRIM-122-DERELICTION", "ORG-POLICE-DISCIPLINE"],
+      "domain": "official_dereliction",
+      "holding": "정당한 이유 없이 직무를 유기한 공무원은 형법 제122조 직무유기죄로 처벌되며 파면·해임 징계 병행",
+      "keywords": ["직무유기", "제122조", "공무원", "파면", "해임"]
+    },
+    {
+      "id": "SC-2024-CORRUPT-ABUSE",
+      "court": "대법원",
+      "case_no": "2024도5501",
+      "article_refs": ["형법 제123조"],
+      "ontology_nodes": ["KR-CRIM-123-ABUSE", "ORG-POLICE-DISCIPLINE"],
+      "domain": "official_abuse",
+      "holding": "직권을 남용하여 의무 없는 일을 하게 하거나 권리행사를 방해한 경우 직권남용죄 성립",
+      "keywords": ["직권남용", "제123조", "권리행사방해", "강압수사"]
+    },
+    {
+      "id": "SC-2024-CORRUPT-FALSEDOC",
+      "court": "대법원",
+      "case_no": "2024도5502",
+      "article_refs": ["형법 제227조"],
+      "ontology_nodes": ["KR-CRIM-227-FALSEDOC", "ORG-POLICE-DISCIPLINE"],
+      "domain": "false_official_document",
+      "holding": "공무원이 행사할 목적으로 허위공문서를 작성한 경우 허위공문서작성죄로 처벌되며 수사서류 조작은 중대 비위",
+      "keywords": ["허위공문서작성", "제227조", "수사서류조작", "증거조작"]
+    },
+    {
+      "id": "SC-2024-CORRUPT-EVIDENCE",
+      "court": "대법원",
+      "case_no": "2024도5503",
+      "article_refs": ["형법 제155조"],
+      "ontology_nodes": ["KR-CRIM-155-EVIDENCE", "ORG-POLICE-DISCIPLINE"],
+      "domain": "evidence_tampering",
+      "holding": "타인의 형사사건에 관한 증거를 인멸·은닉·위조한 경우 증거인멸죄가 성립하며 수사관의 증거 훼손은 가중 비위",
+      "keywords": ["증거인멸", "제155조", "은닉", "증거훼손", "CCTV조작"]
+    },
+    {
+      "id": "SC-2024-CORRUPT-LEAK",
+      "court": "대법원",
+      "case_no": "2024도5504",
+      "article_refs": ["형법 제127조", "경찰공무원법 제56조"],
+      "ontology_nodes": ["KR-CRIM-127-SECRET", "ORG-POLICE-DISCIPLINE"],
+      "domain": "official_secret_leak",
+      "holding": "공무상 비밀을 누설한 경우 공무상비밀누설죄가 성립하며 수사기밀 유출은 파면 사유",
+      "keywords": ["공무상비밀누설", "제127조", "수사기밀유출", "파면"]
+    },
+    {
+      "id": "SC-2023-CORRUPT-DUTY",
+      "court": "대법원",
+      "case_no": "2023도5505",
+      "article_refs": ["경찰공무원법 제56조", "제57조"],
+      "ontology_nodes": ["KR-POLICE-ACT-56", "ORG-POLICE-DISCIPLINE"],
+      "domain": "police_duty_violation",
+      "holding": "경찰공무원의 성실의무·복종의무 위반은 경찰공무원 징계령에 따라 파면·해임 등 중징계 양정",
+      "keywords": ["성실의무", "복종의무", "징계령", "중징계", "파면"]
+    },
+    {
+      "id": "SC-2024-CORRUPT-COERCION",
+      "court": "대법원",
+      "case_no": "2024도5506",
+      "article_refs": ["형법 제125조"],
+      "ontology_nodes": ["KR-CRIM-125-VIOLENCE", "ORG-POLICE-DISCIPLINE"],
+      "domain": "investigation_coercion",
+      "holding": "수사 과정에서 폭행·가혹행위로 진술을 강요한 경우 독직폭행죄가 성립하며 위법수집증거 배제",
+      "keywords": ["독직폭행", "가혹행위", "진술강요", "욕설", "폭언"]
+    },
+    {
+      "id": "SC-2024-CORRUPT-SEIZURE-OMIT",
+      "court": "대법원",
+      "case_no": "2024도5507",
+      "article_refs": ["형법 제227조", "형사소송법 제129조"],
+      "ontology_nodes": ["KR-CRIM-227-FALSEDOC", "ORG-POLICE-DISCIPLINE"],
+      "domain": "seizure_list_omission",
+      "holding": "압수물 목록을 고의로 누락하거나 압수조서를 허위 작성한 경우 허위공문서작성·증거인멸 위험",
+      "keywords": ["압수목록누락", "압수조서", "허위작성", "디지털증거"]
     }
   ]
 }

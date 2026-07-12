@@ -37,6 +37,13 @@ import 'panels/sgp_medical_transfer_guide_panel.dart';
 import 'sgp_civil_complaint_data.dart';
 import 'sgp_kgrag_assets.dart';
 import 'sgp_kgrag_router.dart';
+import '../control/sgp_anti_corruption_filter.dart';
+import 'panels/sgp_anti_corruption_panel.dart';
+import 'panels/sgp_statute_domain_panel.dart';
+import 'sgp_operational_mode.dart';
+import 'sgp_statute_domain_engine.dart';
+import 'widgets/sgp_mode_toggle_button.dart';
+import '../investigation/widgets/sgp_arrest_timeline_bar.dart';
 import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
@@ -110,6 +117,12 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   KgragReasoningResult? _kgragResult;
   bool _kgragLoading = false;
   bool _kgragIndexReady = false;
+  AntiCorruptionAssessment? _antiCorruptionAssessment;
+  SgpOperationalMode _operationalMode = SgpOperationalMode.field;
+  StatuteDomain _statuteDomain = StatuteDomain.none;
+  TrafficAccidentResult? _trafficResult;
+  StalkingResult? _stalkingResult;
+  JuvenileResult? _juvenileResult;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -326,6 +339,60 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _refreshCivilComplaintRoute();
     _refreshMedicalTransferRoute();
     _refreshKgragReasoning();
+    _refreshAntiCorruption();
+    _refreshStatuteDomain();
+  }
+
+  void _refreshStatuteDomain() {
+    final text = _rawTextController.text.trim();
+    if (text.isEmpty) {
+      if (_statuteDomain != StatuteDomain.none && mounted) {
+        setState(() {
+          _statuteDomain = StatuteDomain.none;
+          _trafficResult = null;
+          _stalkingResult = null;
+          _juvenileResult = null;
+        });
+      }
+      return;
+    }
+    final domain = SgpStatuteDomainEngine.detectDomain(text);
+    TrafficAccidentResult? traffic;
+    StalkingResult? stalking;
+    JuvenileResult? juvenile;
+    switch (domain) {
+      case StatuteDomain.trafficAccident:
+        traffic = SgpStatuteDomainEngine.analyzeTraffic(text);
+      case StatuteDomain.stalking:
+        stalking = SgpStatuteDomainEngine.analyzeStalking(text);
+      case StatuteDomain.juvenile:
+        final age = SgpStatuteDomainEngine.extractAge(text);
+        if (age != null) juvenile = SgpStatuteDomainEngine.analyzeJuvenile(age);
+      case StatuteDomain.none:
+        break;
+    }
+    if (!mounted) return;
+    setState(() {
+      _statuteDomain = domain;
+      _trafficResult = traffic;
+      _stalkingResult = stalking;
+      _juvenileResult = juvenile;
+    });
+  }
+
+  void _refreshAntiCorruption() {
+    final text = _rawTextController.text.trim();
+    if (text.isEmpty) {
+      if (_antiCorruptionAssessment != null && mounted) {
+        setState(() => _antiCorruptionAssessment = null);
+      }
+      return;
+    }
+    final assessment = SgpAntiCorruptionFilter.assess(documentText: text);
+    if (!mounted) return;
+    setState(() {
+      _antiCorruptionAssessment = assessment.isClean ? null : assessment;
+    });
   }
 
   void _refreshKgragReasoning() {
@@ -359,6 +426,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       _kgragResult = result;
       _kgragLoading = false;
     });
+  }
 
   void _refreshMedicalTransferRoute() {
     final pack = _civilComplaintPack;
@@ -1476,6 +1544,16 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SgpModeToggleButton(
+              mode: _operationalMode,
+              onChanged: (mode) => setState(() => _operationalMode = mode),
+            ),
+            const SizedBox(height: 12),
+            if (_operationalMode == SgpOperationalMode.investigation &&
+                _procedureTimeline != null) ...[
+              SgpArrestTimelineBar(timeline: _procedureTimeline!),
+              const SizedBox(height: 12),
+            ],
             if (_modelLoading)
               const LinearProgressIndicator(minHeight: 3),
             if (_sttBusy) ...[
@@ -1501,6 +1579,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
               ].whereType<String>().join(' · '),
             ),
             const SizedBox(height: 12),
+            if (_operationalMode == SgpOperationalMode.field) ...[
                   SgpConstitutionalForceIndicator(
                     assessment: _forceAssessment,
                     selectedForceTier: _selectedForceTier,
@@ -1553,7 +1632,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 12),
+            ],
+            const SizedBox(height: 12),
             _buildSttField(),
             if (_quantumComparison != null) ...[
               const SizedBox(height: 12),
@@ -1573,11 +1653,25 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
             ],
             const SizedBox(height: 12),
             _buildRuleMappingSection(),
-            const SizedBox(height: 16),
-            _buildChecklistSection(),
+            if (_operationalMode == SgpOperationalMode.investigation &&
+                _statuteDomain != StatuteDomain.none) ...[
+              const SizedBox(height: 12),
+              SgpStatuteDomainPanel(
+                domain: _statuteDomain,
+                traffic: _trafficResult,
+                stalking: _stalkingResult,
+                juvenile: _juvenileResult,
+              ),
+            ],
+            if (_operationalMode == SgpOperationalMode.field) ...[
+              const SizedBox(height: 16),
+              _buildChecklistSection(),
+            ],
             const SizedBox(height: 16),
             _buildInferenceSection(),
-            _buildArrestTimelineSection(),
+            if (_operationalMode == SgpOperationalMode.investigation ||
+                _procedureTimeline == null)
+              _buildArrestTimelineSection(),
             if (_generatedOutput != null) ...[
               const SizedBox(height: 16),
               _buildOutputPreview(),
@@ -1591,9 +1685,22 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                 kgragLoading: _kgragLoading,
               ),
             ],
+            if (_antiCorruptionAssessment != null) ...[
+              const SizedBox(height: 16),
+              SgpAntiCorruptionPanel(assessment: _antiCorruptionAssessment!),
+            ],
+            if (_operationalMode == SgpOperationalMode.investigation &&
+                _procedureTimeline == null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '지구대 무전 T-0 데이터가 없습니다. 「체포 확정」 후 48시간 게이지가 활성화됩니다.',
+                style: TextStyle(fontSize: 11, color: SgpAppTheme.textMuted, height: 1.35),
+              ),
+            ],
             const SizedBox(height: 16),
             _buildStorageSection(),
-            if (_procedureTimeline != null) ...[
+            if (_procedureTimeline != null &&
+                _operationalMode == SgpOperationalMode.field) ...[
               const SizedBox(height: 12),
               SgpTimelineWidget(
                 timeline: _procedureTimeline!,
@@ -1619,7 +1726,14 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   Widget _buildSttField() {
     final isListening = _sttState == SttSessionState.listening;
     final isProcessing = _sttState == SttSessionState.processing;
-    final accent = isListening ? SgpAppTheme.cotAggressor : SgpAppTheme.accent;
+    final isField = _operationalMode == SgpOperationalMode.field;
+    final accent = isListening
+        ? SgpAppTheme.cotAggressor
+        : isField
+            ? SgpAppTheme.accent
+            : SgpAppTheme.error;
+    final sectionTitle = _operationalMode.sttSectionTitle;
+    final hint = _operationalMode.sttHint;
 
     return SgpFieldCard(
       child: Column(
@@ -1635,7 +1749,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '무전 STT 원문',
+                  sectionTitle,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -1678,7 +1792,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
               ),
               cursorColor: SgpAppTheme.primaryLight,
               decoration: InputDecoration(
-                hintText: '현장 무전·진술 텍스트를 입력하거나 마이크로 수신…',
+                hintText: hint,
                 hintStyle: TextStyle(color: SgpAppTheme.textMuted),
                 filled: true,
                 fillColor: SgpAppTheme.surfaceHigh,
@@ -1731,53 +1845,55 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: _sttBusy ? null : _startSttCapture,
-              icon: isListening || isProcessing
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: accent,
-                      ),
-                    )
-                  : Icon(Icons.mic_none, color: accent),
-              label: Text(
-                isListening
-                    ? '수신 중… 말씀하세요'
-                    : isProcessing
-                        ? '변환 중…'
-                        : _sttEngine.canTranscribe
-                            ? '마이크 STT 수신'
-                            : 'STT 준비 안 됨',
-                style: TextStyle(
-                  color: accent,
-                  fontWeight: FontWeight.bold,
+          if (isField) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: _sttBusy ? null : _startSttCapture,
+                icon: isListening || isProcessing
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: accent,
+                        ),
+                      )
+                    : Icon(Icons.mic_none, color: accent),
+                label: Text(
+                  isListening
+                      ? '수신 중… 말씀하세요'
+                      : isProcessing
+                          ? '변환 중…'
+                          : _sttEngine.canTranscribe
+                              ? '마이크 STT 수신'
+                              : 'STT 준비 안 됨',
+                  style: TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: isListening
+                      ? accent.withValues(alpha: 0.15)
+                      : SgpCotColors.brand.withValues(alpha: 0.2),
+                  foregroundColor: accent,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
-              style: FilledButton.styleFrom(
-                backgroundColor: isListening
-                    ? accent.withValues(alpha: 0.15)
-                    : SgpCotColors.brand.withValues(alpha: 0.2),
-                foregroundColor: accent,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _sttSourceLabel,
+              style: TextStyle(
+                fontSize: 11,
+                color: _sttEngine.canTranscribe ? SgpCotColors.neon : SgpCotColors.onDark,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _sttSourceLabel,
-            style: TextStyle(
-              fontSize: 11,
-              color: _sttEngine.canTranscribe ? SgpCotColors.neon : SgpCotColors.onDark,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
+          ],
         ],
       ),
     );
