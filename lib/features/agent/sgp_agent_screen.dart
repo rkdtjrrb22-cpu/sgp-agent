@@ -27,6 +27,10 @@ import 'sgp_legal_hierarchy.dart';
 import 'sgp_legal_hierarchy_ota.dart';
 import 'sgp_legal_ontology_session.dart';
 import 'sgp_demo_field_scenario.dart';
+import 'sgp_civil_complaint_loader.dart';
+import 'sgp_civil_complaint_router.dart';
+import 'sgp_civil_complaint_guide.dart';
+import 'sgp_civil_complaint_data.dart';
 import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
@@ -88,6 +92,9 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   PoliceForceTier? _selectedForceTier;
   bool _forceFlashExcessive = false;
   bool _forceAlertShownForCurrentExcess = false;
+  CivilComplaintNodePack? _civilComplaintPack;
+  CivilComplaintRouteResult? _civilComplaintRoute;
+  bool _civilComplaintDismissed = false;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -141,7 +148,13 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     await SgpLegalHierarchyOta.instance.initialize(
       loadAsset: () => rootBundle.loadString(SgpLegalHierarchyRegistry.assetPath),
     );
-    SgpLegalOntologySession.instance.loadFromRegistry();
+    try {
+      final pack = await SgpCivilComplaintLoader.loadFromAssets();
+      SgpLegalOntologySession.instance.attachCivilComplaintPack(pack);
+      _civilComplaintPack = pack;
+    } catch (_) {
+      SgpLegalOntologySession.instance.loadFromRegistry();
+    }
     if (!mounted) return;
     final ota = SgpLegalHierarchyOta.instance.lastRefreshStatus;
     final triples = SgpLegalOntologySession.instance.tripleCount;
@@ -149,6 +162,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     setState(
       () => _hierarchyOtaStatus = '$ota · ontology:$triples · $stub',
     );
+    _refreshCivilComplaintRoute();
   }
 
   Future<void> _loadFieldDemoScenario() async {
@@ -268,6 +282,93 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     });
     _refreshQuantumAnalysis();
     _refreshForceAssessment();
+    _refreshCivilComplaintRoute();
+  }
+
+  void _refreshCivilComplaintRoute() {
+    final pack = _civilComplaintPack;
+    if (pack == null) return;
+    final text = _rawTextController.text.trim();
+    if (text.isEmpty || _civilComplaintDismissed) {
+      if (_civilComplaintRoute != null && mounted) {
+        setState(() => _civilComplaintRoute = null);
+      }
+      return;
+    }
+    final graph = SgpLegalOntologySession.instance.graph;
+    final route = SgpCivilComplaintRouter.routeFromText(
+      text,
+      pack,
+      graph: graph,
+    );
+    if (!mounted) return;
+    if (route != null && route.isHighConfidence) {
+      setState(() {
+        _civilComplaintRoute = route;
+        _civilComplaintDismissed = false;
+      });
+    } else if (_civilComplaintRoute != null) {
+      setState(() => _civilComplaintRoute = null);
+    }
+  }
+
+  Future<void> _showComplaintScenarioPicker() async {
+    final pack = _civilComplaintPack;
+    if (pack == null) {
+      _showSnack('민원 노드 로드 중…');
+      return;
+    }
+    final demos = <(String, String)>[
+      ('면허증 분실', '면허증 잃어버렸는데 어디서 만들어요?'),
+      ('주차 분쟁', '옆집이랑 주차 때문에 싸웠는데 경찰이 와서 딱지 좀 떼줘요'),
+      ('층간소음', '윗집 층간소음이 너무 심해서 경찰 좀 불러주세요'),
+      ('사이버 사기', '보이스피싱으로 돈 이체당했어요 신고하려고요'),
+      ('실종 신고', '가출한 아들 찾으러 왔습니다 실종 신고'),
+      ('유실물', '지갑 분실했는데 Lost112 어디서 찾나요'),
+    ];
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                '종합 민원 시연 시나리오',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+            ...demos.map(
+              (d) => ListTile(
+                title: Text(d.$1),
+                subtitle: Text(d.$2, style: const TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _rawTextController.text = d.$2;
+                  _civilComplaintDismissed = false;
+                  _applyRuleMapping();
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openCivilComplaintGuideScreen() {
+    final route = _civilComplaintRoute;
+    if (route == null) {
+      _showSnack('민원 라우팅 결과 없음 — 시연 시나리오 또는 민원 키워드를 입력하세요.');
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SgpCivilComplaintGuideScreen(route: route),
+      ),
+    );
   }
 
   void _refreshForceAssessment() {
@@ -1090,6 +1191,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
         title: const Text('SGP-Agent'),
         actions: [
           IconButton(
+            tooltip: '종합 민원 시연 시나리오',
+            icon: const Icon(Icons.support_agent_outlined),
+            onPressed: _showComplaintScenarioPicker,
+          ),
+          IconButton(
             tooltip: '5단계 물리력 시연 프리셋',
             icon: const Icon(Icons.shield_outlined),
             onPressed: _showForceScenarioPicker,
@@ -1110,103 +1216,116 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_modelLoading)
-                    const LinearProgressIndicator(minHeight: 3),
-                  if (_statusMessage != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _statusMessage!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: SgpAppTheme.textMuted,
-                          ),
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_modelLoading)
+              const LinearProgressIndicator(minHeight: 3),
+            if (_statusMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _statusMessage!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: SgpAppTheme.textMuted,
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  SgpBluetoothStatusBar(
-                    sttEngine: _sttEngine,
-                    sttState: _sttState,
-                    otaStatus: [
-                      _otaStatus,
-                      _hierarchyOtaStatus,
-                    ].whereType<String>().join(' · '),
-                  ),
-                  const SizedBox(height: 12),
+              ),
+            ],
+            const SizedBox(height: 12),
+            SgpBluetoothStatusBar(
+              sttEngine: _sttEngine,
+              sttState: _sttState,
+              otaStatus: [
+                _otaStatus,
+                _hierarchyOtaStatus,
+              ].whereType<String>().join(' · '),
+            ),
+            const SizedBox(height: 12),
                   SgpConstitutionalForceIndicator(
                     assessment: _forceAssessment,
                     selectedForceTier: _selectedForceTier,
                     onForceTierChanged: _onForceTierChanged,
                     flashExcessive: _forceFlashExcessive,
                   ),
-                  const SizedBox(height: 12),
-                  _buildSttField(),
-                  if (_quantumComparison != null) ...[
+                  if (_civilComplaintRoute != null) ...[
                     const SizedBox(height: 12),
-                    SgpFieldCard(
-                      child: SgpQuantumComparisonPanel(
-                        comparison: _quantumComparison!,
-                        showPrecedentGuides:
-                            _generatedOutput != null || _advancedAnalysis != null,
+                    SgpCivilComplaintGuidePanel(
+                      route: _civilComplaintRoute!,
+                      onDismiss: () => setState(() {
+                        _civilComplaintRoute = null;
+                        _civilComplaintDismissed = true;
+                      }),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: _openCivilComplaintGuideScreen,
+                        icon: const Icon(Icons.open_in_full, size: 16),
+                        label: const Text('전체 화면 가이드'),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    SgpActionGuidanceBar(
-                      guidance: _quantumComparison!.actionGuidance,
-                      urgency: _quantumComparison!.urgencyLevel,
-                      hierarchyGuidance: _quantumComparison!.hierarchyGuidance,
-                    ),
                   ],
                   const SizedBox(height: 12),
-                  _buildRuleMappingSection(),
-                  const SizedBox(height: 16),
-                  _buildChecklistSection(),
-                  const SizedBox(height: 16),
-                  _buildInferenceSection(),
-                  _buildArrestTimelineSection(),
-                  if (_generatedOutput != null) ...[
-                    const SizedBox(height: 16),
-                    _buildOutputPreview(),
-                  ],
-                  if (_advancedAnalysis != null) ...[
-                    const SizedBox(height: 16),
-                    AdvancedAnalysisWidget(
-                      analysis: _advancedAnalysis!,
-                      onProceduralTap: () => _showProceduralAlert(_advancedAnalysis!),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  _buildStorageSection(),
-                  const SizedBox(height: 24),
-                ],
+            _buildSttField(),
+            if (_quantumComparison != null) ...[
+              const SizedBox(height: 12),
+              SgpFieldCard(
+                child: SgpQuantumComparisonPanel(
+                  comparison: _quantumComparison!,
+                  showPrecedentGuides:
+                      _generatedOutput != null || _advancedAnalysis != null,
+                ),
               ),
-            ),
-          ),
-          if (_procedureTimeline != null)
-            Flexible(
-              child: SgpTimelineWidget(
+              const SizedBox(height: 10),
+              SgpActionGuidanceBar(
+                guidance: _quantumComparison!.actionGuidance,
+                urgency: _quantumComparison!.urgencyLevel,
+                hierarchyGuidance: _quantumComparison!.hierarchyGuidance,
+              ),
+            ],
+            const SizedBox(height: 12),
+            _buildRuleMappingSection(),
+            const SizedBox(height: 16),
+            _buildChecklistSection(),
+            const SizedBox(height: 16),
+            _buildInferenceSection(),
+            _buildArrestTimelineSection(),
+            if (_generatedOutput != null) ...[
+              const SizedBox(height: 16),
+              _buildOutputPreview(),
+            ],
+            if (_advancedAnalysis != null) ...[
+              const SizedBox(height: 16),
+              AdvancedAnalysisWidget(
+                analysis: _advancedAnalysis!,
+                onProceduralTap: () => _showProceduralAlert(_advancedAnalysis!),
+              ),
+            ],
+            const SizedBox(height: 16),
+            _buildStorageSection(),
+            if (_procedureTimeline != null) ...[
+              const SizedBox(height: 12),
+              SgpTimelineWidget(
                 timeline: _procedureTimeline!,
                 onCheckChanged: _onTimelineCheckChanged,
                 onDismiss: () => setState(() => _procedureTimeline = null),
-                maxHeight: 340,
+                embeddedInParentScroll: true,
                 physicalThreatLevel: _procedureTimeline!.physicalThreatLevel,
                 onThreatLevelChanged: _onThreatLevelChanged,
                 forceAssessment: _forceAssessment,
                 onStartEvidenceNotice: _onStartEvidenceNotice,
                 onGenerateReport: _onGenerateLegalReport,
               ),
-            ),
-        ],
+            ],
+            const SizedBox(height: 12),
+            _buildStickyBottomBar(inScrollView: true),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
-      bottomNavigationBar: _buildStickyBottomBar(),
     );
   }
 
@@ -1637,7 +1756,13 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Text(
                                   line,
-                                  style: const TextStyle(fontSize: 12, height: 1.35),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    height: 1.35,
+                                    color: voiceHighlighted || suggestedByRule
+                                        ? SgpFieldColors.fieldGuideBody
+                                        : SgpAppTheme.textSecondary,
+                                  ),
                                 ),
                               ))
                           .toList(),
@@ -2044,9 +2169,9 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     );
   }
 
-  Widget _buildStickyBottomBar() {
+  Widget _buildStickyBottomBar({bool inScrollView = false}) {
     return Material(
-      elevation: 8,
+      elevation: inScrollView ? 0 : 8,
       color: SgpAppTheme.surfaceHigh,
       child: SafeArea(
         top: false,

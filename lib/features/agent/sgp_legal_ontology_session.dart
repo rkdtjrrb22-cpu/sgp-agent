@@ -1,6 +1,8 @@
 /// 로컬 온톨로지 세션 — Docker·법제처 API 없이 시드 기반 Triples 강제 로드.
 library;
 
+import 'sgp_civil_complaint_data.dart';
+import 'sgp_civil_complaint_router.dart';
 import 'sgp_legal_hierarchy.dart';
 import 'sgp_legal_ontology.dart';
 
@@ -12,10 +14,13 @@ class SgpLegalOntologySession {
 
   LegalOntologyGraph? _graph;
   String _source = 'uninitialized';
+  CivilComplaintNodePack? _complaintPack;
 
   bool get isLoaded => _graph != null;
 
   LegalOntologyGraph? get graph => _graph;
+
+  CivilComplaintNodePack? get complaintPack => _complaintPack;
 
   int get nodeCount => _graph?.nodes.length ?? 0;
 
@@ -31,15 +36,35 @@ class SgpLegalOntologySession {
       _source = 'registry_not_loaded';
       return;
     }
-    _graph = LegalOntologyMigrator.graphFromRegistry(reg);
-    _source = 'legal_hierarchy_seed';
+    var graph = LegalOntologyMigrator.graphFromRegistry(reg);
+    if (_complaintPack != null) {
+      graph = SgpCivilComplaintRouter.mergeComplaintTriples(
+        base: graph,
+        pack: _complaintPack!,
+      );
+    }
+    _graph = graph;
+    _source = _complaintPack == null
+        ? 'legal_hierarchy_seed'
+        : 'legal_hierarchy_seed+civil_complaint';
+  }
+
+  /// S7-D — 민원 노드 팩 병합 후 그래프 재구성.
+  void attachCivilComplaintPack(CivilComplaintNodePack pack) {
+    _complaintPack = pack;
+    if (SgpLegalHierarchyRegistry.instance.isLoaded) {
+      loadFromRegistry();
+    }
   }
 
   /// 시드 JSON 문자열에서 직접 로드 (테스트·스텁 서버).
-  void loadFromSeedJson(String seedJson) {
+  void loadFromSeedJson(String seedJson, {CivilComplaintNodePack? complaintPack}) {
+    if (complaintPack != null) {
+      _complaintPack = complaintPack;
+    }
     SgpLegalHierarchyRegistry.instance.loadFromJson(seedJson);
     loadFromRegistry();
-    _source = 'seed_json';
+    _source = _complaintPack == null ? 'seed_json' : 'seed_json+civil_complaint';
   }
 
   /// 현장 텍스트·체인 노드에 연결된 트리플 추출.
@@ -58,6 +83,7 @@ class SgpLegalOntologySession {
 
   void reset() {
     _graph = null;
+    _complaintPack = null;
     _source = 'uninitialized';
   }
 }

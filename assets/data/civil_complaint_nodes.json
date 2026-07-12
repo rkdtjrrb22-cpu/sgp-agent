@@ -1,0 +1,301 @@
+{
+  "schema_version": "1.0",
+  "title": "경찰청 통계 기반 종합 민원해결 매트릭스 (S7-D)",
+  "root_id": "CC-ROOT-POLICE-COMPLAINT",
+  "complaint_types": [
+    {
+      "id": "CC-TYPE-COMPLAINT-INTAKE",
+      "parent_id": "CC-CAT-CRIMINAL",
+      "category": "수사·형사 민원",
+      "title": "고소·고발장 접수",
+      "keywords": ["고소", "고발", "고소장", "고발장", "진정서"],
+      "intent_patterns": ["고소.*접수", "고발.*접수"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-POLICE-CIVIL-DESK",
+          "agency_name": "경찰서 통합민원실",
+          "scope": "intake",
+          "phone": "182"
+        },
+        {
+          "agency_id": "AGENCY-POLICE-INVEST",
+          "agency_name": "수사과·형사과 경제팀",
+          "scope": "investigation",
+          "transfer": true
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "complaint_form", "label": "고소·고발장(서식)" },
+        { "doc_type": "id_card", "label": "신분증" },
+        { "doc_type": "evidence_copy", "label": "입증자료(계약서·대화·이체내역 등)" }
+      ],
+      "admin_guide_lv8": "반려 없는 접수를 위한 필수 성립요건 점검. 입증자료(이체내역서 등) 지참 안내 및 서식 다운로드 연동.",
+      "form_url": "https://www.police.go.kr/form/complaint",
+      "phone": "182"
+    },
+    {
+      "id": "CC-TYPE-CYBER-FRAUD",
+      "parent_id": "CC-CAT-CRIMINAL",
+      "category": "수사·형사 민원",
+      "title": "사이버 사기 피해 신고",
+      "keywords": ["사이버", "사기", "피싱", "보이스피싱", "전화사기", "이체"],
+      "intent_patterns": ["사기.*신고", "피싱.*당"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-POLICE-CIVIL-DESK",
+          "agency_name": "경찰서 통합민원실",
+          "scope": "intake"
+        },
+        {
+          "agency_id": "AGENCY-POLICE-CYBER",
+          "agency_name": "사이버수사팀",
+          "scope": "cyber_investigation",
+          "transfer": true,
+          "phone": "182"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "transfer_receipt", "label": "이체내역서·거래내역" },
+        { "doc_type": "chat_log", "label": "대화·문자 캡처" },
+        { "doc_type": "complaint_form", "label": "피해신고서" }
+      ],
+      "admin_guide_lv8": "금융기관 지급정지·피해환급 절차 병행 안내. 이체내역·대화 기록 즉시 확보.",
+      "form_url": "https://www.police.go.kr/form/cyber",
+      "phone": "182"
+    },
+    {
+      "id": "CC-TYPE-TRAFFIC-FINE-APPEAL",
+      "parent_id": "CC-CAT-TRAFFIC",
+      "category": "교통 행정 민원",
+      "title": "교통범칙금·과태료 이의신청",
+      "keywords": ["범칙금", "과태료", "이의신청", "딱지", "통행료"],
+      "intent_patterns": ["범칙금.*이의", "과태료.*이의"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-POLICE-TRAFFIC",
+          "agency_name": "경찰서 민원실 교통계",
+          "scope": "traffic_admin",
+          "phone": "182"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "fine_notice", "label": "범칙금·과태료 고지서" },
+        { "doc_type": "id_card", "label": "신분증" },
+        { "doc_type": "appeal_form", "label": "이의신청서" }
+      ],
+      "admin_guide_lv8": "이의신청 기한(통지일로부터 60일) 확인. 증거자료(블랙박스·CCTV) 지참 안내.",
+      "form_url": "https://www.police.go.kr/form/traffic_appeal",
+      "phone": "182"
+    },
+    {
+      "id": "CC-TYPE-LICENSE-REISSUE",
+      "parent_id": "CC-CAT-TRAFFIC",
+      "category": "교통 행정 민원",
+      "title": "운전면허증 갱신·재발급·국제면허",
+      "keywords": ["면허", "면허증", "재발급", "갱신", "국제면허", "분실"],
+      "intent_patterns": ["면허.*잃", "면허.*어디", "면허.*만들"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-POLICE-TRAFFIC",
+          "agency_name": "경찰서 민원실 교통계",
+          "scope": "license_reissue",
+          "phone": "182"
+        },
+        {
+          "agency_id": "AGENCY-KOROAD",
+          "agency_name": "도로교통공단 안전운전 통합민원",
+          "scope": "license_center",
+          "transfer": true,
+          "phone": "1577-0990"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "id_card", "label": "신분증" },
+        { "doc_type": "photo", "label": "증명사진(3.5×4.5cm)" },
+        { "doc_type": "fee", "label": "수수료(창구·온라인)" }
+      ],
+      "admin_guide_lv8": "준비물(사진, 신분증, 수수료) 명시. [기관 이관] 인근 운전면허시험장 당일 발급 경로 및 온라인 접수 QR 연동.",
+      "map_url": "https://www.safetydriver.or.kr/offices",
+      "form_url": "https://www.safetydriver.or.kr/online",
+      "phone": "1577-0990"
+    },
+    {
+      "id": "CC-TYPE-WEAPON-PERMIT",
+      "parent_id": "CC-CAT-SAFETY",
+      "category": "생활 안전 민원",
+      "title": "총포·도검·화약류 소지 허가",
+      "keywords": ["총포", "도검", "화약", "허가", "소지"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LIVING-SAFETY",
+          "agency_name": "경찰서 생활안전과",
+          "scope": "weapon_permit",
+          "phone": "182"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "permit_application", "label": "허가·신고 서류" },
+        { "doc_type": "id_card", "label": "신분증" },
+        { "doc_type": "storage_proof", "label": "보관시설 증빙(해당 시)" }
+      ],
+      "admin_guide_lv8": "총포·도검·화약류 관리법상 허가 요건·보관 의무 사전 안내.",
+      "phone": "182"
+    },
+    {
+      "id": "CC-TYPE-LOST-FOUND",
+      "parent_id": "CC-CAT-SAFETY",
+      "category": "생활 안전 민원",
+      "title": "유실물(분실·습득) 접수",
+      "keywords": ["분실", "유실", "잃어버", "습득", "이리네", "Lost112"],
+      "intent_patterns": [".*잃어버", "분실.*신고"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-POLICE-CIVIL-DESK",
+          "agency_name": "지구대·파출소",
+          "scope": "lost_intake"
+        },
+        {
+          "agency_id": "AGENCY-LOST112",
+          "agency_name": "Lost112 유실물 통합포털",
+          "scope": "lost_search",
+          "transfer": true,
+          "phone": "182"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "item_description", "label": "분실물 특징·일시·장소" },
+        { "doc_type": "id_card", "label": "신분증(접수 시)" }
+      ],
+      "admin_guide_lv8": "분실물 확인을 위한 Lost112 즉시 검색 연동. 지구대·파출소 접수 후 포털 등록.",
+      "form_url": "https://www.lost112.go.kr",
+      "map_url": "https://www.lost112.go.kr/search",
+      "phone": "182"
+    },
+    {
+      "id": "CC-TYPE-MISSING-PERSON",
+      "parent_id": "CC-CAT-SAFETY",
+      "category": "생활 안전 민원",
+      "title": "실종·가출 신고",
+      "keywords": ["실종", "가출", "행방불명", "찾", "실종자"],
+      "intent_patterns": ["실종.*신고", "가출.*신고"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LIVING-SAFETY",
+          "agency_name": "경찰서 생활안전과·지구대",
+          "scope": "missing_person",
+          "phone": "182"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "missing_report", "label": "실종·가출 신고서" },
+        { "doc_type": "recent_photo", "label": "최근 사진" },
+        { "doc_type": "medical_info", "label": "질병·복용약 정보(해당 시)" }
+      ],
+      "admin_guide_lv8": "실종·가출의 경우 S7-C 골든타임 프로필 작성 가이드로 즉시 스위칭. 최근 사진·특징·마지막 목격 정보 즉시 기록.",
+      "switch_to_golden_time_profile": true,
+      "phone": "182"
+    },
+    {
+      "id": "CC-TYPE-CIVIL-DISPUTE",
+      "parent_id": "CC-CAT-TRANSFER",
+      "category": "타 기관 이관",
+      "title": "단순 민사 분쟁",
+      "keywords": ["민사", "손해배상", "계약", "돈", "빌려", "채무"],
+      "intent_patterns": ["돈.*갚", "손해.*배상"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LOCAL-GOV",
+          "agency_name": "관할 시·군·구청 민원실",
+          "scope": "civil_mediation",
+          "transfer": true
+        },
+        {
+          "agency_id": "AGENCY-110",
+          "agency_name": "정부민원안내콜센터 110",
+          "scope": "gov_hotline",
+          "phone": "110"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "contract_copy", "label": "계약서·차용증 등", "required": false }
+      ],
+      "admin_guide_lv8": "해당 사안은 민사 사안으로 경찰 강제력 행사가 제한됨. 관할 지자체 민원실·110번 원클릭 연결 경로 제시.",
+      "police_dispatch_warning": true,
+      "phone": "110"
+    },
+    {
+      "id": "CC-TYPE-NOISE",
+      "parent_id": "CC-CAT-TRANSFER",
+      "category": "타 기관 이관",
+      "title": "층간소음·생활소음",
+      "keywords": ["층간", "소음", "시끄", "음악", "쿵쾅"],
+      "intent_patterns": ["층간.*소음", "옆집.*시끄"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LOCAL-GOV",
+          "agency_name": "관할 구청 주택과·환경과",
+          "scope": "noise_admin",
+          "transfer": true
+        },
+        {
+          "agency_id": "AGENCY-NEIGHBOR",
+          "agency_name": "이웃사이센터(주민센터)",
+          "scope": "mediation",
+          "transfer": true
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "noise_log", "label": "소음 일지(일시·내용)", "required": false }
+      ],
+      "admin_guide_lv8": "층간소음은 지자체·주민센터 소관. 경찰 출동은 생명·신체 긴급 위험 시에 한함.",
+      "police_dispatch_warning": true,
+      "phone": "110"
+    },
+    {
+      "id": "CC-TYPE-ILLEGAL-PARKING",
+      "parent_id": "CC-CAT-TRANSFER",
+      "category": "타 기관 이관",
+      "title": "불법 주정차·주차 분쟁",
+      "keywords": ["주정차", "주차", "딱지", "견인", "불법주차"],
+      "intent_patterns": ["주차.*싸웠", "딱지.*떼", "주정차.*신고"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LOCAL-GOV",
+          "agency_name": "관할 구청 주차관리과",
+          "scope": "parking_admin",
+          "transfer": true
+        },
+        {
+          "agency_id": "AGENCY-110",
+          "agency_name": "정부민원안내콜센터 110",
+          "scope": "gov_hotline",
+          "phone": "110"
+        }
+      ],
+      "required_documents": [],
+      "admin_guide_lv8": "단순 주차 분쟁·불법주차 단속은 지자체 주차관리과 소관. 경찰은 교통소통 지장·폭력 등 형사사건 시 개입.",
+      "police_dispatch_warning": true,
+      "map_url": "https://www.localgov.go.kr/parking",
+      "phone": "110"
+    },
+    {
+      "id": "CC-TYPE-STREET-VENDOR",
+      "parent_id": "CC-CAT-TRANSFER",
+      "category": "타 기관 이관",
+      "title": "노점상·무허가 영업 신고",
+      "keywords": ["노점", "노상", "행상", "무허가", "포장마차"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LOCAL-GOV",
+          "agency_name": "관할 시·군·구청 생활경제과",
+          "scope": "street_vendor",
+          "transfer": true
+        }
+      ],
+      "required_documents": [],
+      "admin_guide_lv8": "노점·무허가 영업은 지자체 단속 소관. 경찰은 폭력·교통 방해 등 형사사건 연계 시.",
+      "police_dispatch_warning": true,
+      "phone": "110"
+    }
+  ]
+}

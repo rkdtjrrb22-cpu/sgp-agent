@@ -621,6 +621,7 @@ class SgpTimelineWidget extends StatefulWidget {
     required this.onCheckChanged,
     this.onDismiss,
     this.maxHeight = 320,
+    this.embeddedInParentScroll = false,
     this.physicalThreatLevel,
     this.onThreatLevelChanged,
     this.forceAssessment,
@@ -632,6 +633,8 @@ class SgpTimelineWidget extends StatefulWidget {
   final void Function(String nodeId, String checkId, bool value) onCheckChanged;
   final VoidCallback? onDismiss;
   final double maxHeight;
+  /// 부모 [SingleChildScrollView] 안에 넣을 때 내부 스크롤·높이 제한 해제.
+  final bool embeddedInParentScroll;
   final PhysicalThreatLevel? physicalThreatLevel;
   final ValueChanged<PhysicalThreatLevel>? onThreatLevelChanged;
   final ConstitutionalForceAssessment? forceAssessment;
@@ -685,12 +688,11 @@ class _SgpTimelineWidgetState extends State<SgpTimelineWidget> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(timeline, elapsed),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: widget.maxHeight),
-            child: ListView.builder(
+          if (widget.embeddedInParentScroll)
+            ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               shrinkWrap: true,
-              physics: const ClampingScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               primary: false,
               itemCount: timeline.nodes.length,
               itemBuilder: (context, index) {
@@ -708,8 +710,33 @@ class _SgpTimelineWidgetState extends State<SgpTimelineWidget> {
                   onGenerateReport: widget.onGenerateReport,
                 );
               },
+            )
+          else
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: widget.maxHeight),
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                shrinkWrap: true,
+                physics: const ClampingScrollPhysics(),
+                primary: false,
+                itemCount: timeline.nodes.length,
+                itemBuilder: (context, index) {
+                  final node = timeline.nodes[index];
+                  final isLast = index == timeline.nodes.length - 1;
+                  return _TimelineNodeTile(
+                    node: node,
+                    now: _now,
+                    showConnector: !isLast,
+                    onCheckChanged: widget.onCheckChanged,
+                    physicalThreatLevel: widget.physicalThreatLevel,
+                    onThreatLevelChanged: widget.onThreatLevelChanged,
+                    forceAssessment: widget.forceAssessment,
+                    onStartEvidenceNotice: widget.onStartEvidenceNotice,
+                    onGenerateReport: widget.onGenerateReport,
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -740,7 +767,11 @@ class _SgpTimelineWidgetState extends State<SgpTimelineWidget> {
               children: [
                 const Text(
                   'SGP-Agent 사법 절차 타임라인',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: SgpFieldColors.fieldGuideNavy,
+                  ),
                 ),
                 Text(
                   '${timeline.arrestType.displayName} 후 ${hours}시간 경과',
@@ -859,7 +890,11 @@ class _TimelineNodeTile extends StatelessWidget {
                         Expanded(
                           child: Text(
                             node.title,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: SgpFieldColors.fieldGuideNavy,
+                            ),
                           ),
                         ),
                       ],
@@ -899,7 +934,12 @@ class _TimelineNodeTile extends StatelessWidget {
                       ),
                       child: Text(
                         '💡 ${node.actionGuide}',
-                        style: const TextStyle(fontSize: 11, height: 1.35),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          height: 1.35,
+                          color: SgpFieldColors.fieldGuideNavy,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     if (node.id == 'physical_force' && onThreatLevelChanged != null) ...[
@@ -947,7 +987,13 @@ class _TimelineNodeTile extends StatelessWidget {
                       (item) => CheckboxListTile(
                         value: item.checked,
                         onChanged: (v) => onCheckChanged(node.id, item.id, v ?? false),
-                        title: Text(item.label, style: const TextStyle(fontSize: 11)),
+                        title: Text(
+                          item.label,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: SgpFieldColors.fieldGuideBody,
+                          ),
+                        ),
                         dense: true,
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,

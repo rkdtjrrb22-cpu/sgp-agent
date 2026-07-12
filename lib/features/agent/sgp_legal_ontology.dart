@@ -24,7 +24,13 @@ enum LegalPredicate {
   governedBy('governed_by'),
 
   /// 파싱·시드 출처
-  derivedFrom('derived_from');
+  derivedFrom('derived_from'),
+
+  /// S7-D — 민원 유형 → 관할 부서·기관
+  hasJurisdiction('has_jurisdiction'),
+
+  /// S7-D — 민원 유형 → 필요 서류
+  requiresDocument('requires_document');
 
   const LegalPredicate(this.apiValue);
 
@@ -141,6 +147,8 @@ class LegalOntologyGraph {
           LegalPredicate.citesArticle,
           LegalPredicate.appliesToDomain,
           LegalPredicate.governedBy,
+          LegalPredicate.hasJurisdiction,
+          LegalPredicate.requiresDocument,
         };
 
     final visitedNodes = <String>{};

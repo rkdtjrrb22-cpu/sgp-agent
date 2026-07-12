@@ -147,4 +147,8 @@ abstract final class SgpFieldColors {
   static const criticalRed = SgpAppTheme.error;
   static const navy = SgpAppTheme.primary;
   static const textOnAccent = SgpAppTheme.textOnAccent;
+  /// 밝은 배경(미란다 고지·타임라인 카드)용 고대비 본문.
+  static const fieldGuideNavy = Color(0xFF0D233A);
+  /// 연녹/연회색 카드 내부 설명 본문.
+  static const fieldGuideBody = Color(0xFF2C3E50);
 }

@@ -44,7 +44,9 @@ CREATE TABLE IF NOT EXISTS legal_triples (
     'applies_to_domain',
     'conflicts_with',
     'governed_by',
-    'derived_from'
+    'derived_from',
+    'has_jurisdiction',
+    'requires_document'
   )),
   object_id     TEXT REFERENCES legal_nodes(id) ON DELETE SET NULL,
   object_value  TEXT,

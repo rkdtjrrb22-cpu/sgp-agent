@@ -357,5 +357,114 @@
       { "upper_node_id": "KR-LAW-CRIMINAL", "article": "제21조", "note": "정당방위" }
     ],
     "summary": "권총 등 — 헌법 제37조 제2항 최후 수단"
+  },
+  {
+    "id": "CC-ROOT-POLICE-COMPLAINT",
+    "level": 8,
+    "title": "경찰청 통계 기반 종합 민원해결 매트릭스 (S7-D)",
+    "parent_id": "MANUAL-SGP-FIELD-001",
+    "scope": { "org_id": "KR-NPA", "task_category": "civil_complaint" },
+    "filter_keys": ["task_category:civil_complaint", "domain_tag:civil_complaint"],
+    "domain_tags": ["civil_complaint", "administrative", "routing"],
+    "source": "civil_complaint_nodes_s7d.json",
+    "summary": "최다 빈도 민원 — 부서 안내·행정 절차·타 기관 이관"
+  },
+  {
+    "id": "CC-CAT-CRIMINAL",
+    "level": 8,
+    "title": "수사·형사 민원",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "criminal_intake"]
+  },
+  {
+    "id": "CC-CAT-TRAFFIC",
+    "level": 8,
+    "title": "교통 행정 민원",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "traffic_admin"]
+  },
+  {
+    "id": "CC-CAT-SAFETY",
+    "level": 8,
+    "title": "생활 안전 민원",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "living_safety"]
+  },
+  {
+    "id": "CC-CAT-TRANSFER",
+    "level": 8,
+    "title": "타 기관 이관 (경찰 불관할)",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "transfer"]
+  },
+  {
+    "id": "AGENCY-POLICE-CIVIL-DESK",
+    "level": 8,
+    "title": "경찰서 통합민원실",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency"]
+  },
+  {
+    "id": "AGENCY-POLICE-INVEST",
+    "level": 8,
+    "title": "수사과·형사과",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency"]
+  },
+  {
+    "id": "AGENCY-POLICE-CYBER",
+    "level": 8,
+    "title": "사이버수사팀",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency"]
+  },
+  {
+    "id": "AGENCY-POLICE-TRAFFIC",
+    "level": 8,
+    "title": "경찰서 교통계",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency"]
+  },
+  {
+    "id": "AGENCY-KOROAD",
+    "level": 8,
+    "title": "도로교통공단 안전운전 통합민원",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency"]
+  },
+  {
+    "id": "AGENCY-LIVING-SAFETY",
+    "level": 8,
+    "title": "경찰서 생활안전과",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency"]
+  },
+  {
+    "id": "AGENCY-LOST112",
+    "level": 8,
+    "title": "Lost112 유실물 통합포털",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency"]
+  },
+  {
+    "id": "AGENCY-LOCAL-GOV",
+    "level": 8,
+    "title": "관할 시·군·구청",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency", "transfer"]
+  },
+  {
+    "id": "AGENCY-110",
+    "level": 8,
+    "title": "정부민원안내콜센터 110",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency", "transfer"]
+  },
+  {
+    "id": "AGENCY-NEIGHBOR",
+    "level": 8,
+    "title": "이웃사이센터(주민센터)",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency", "transfer"]
   }
 ]

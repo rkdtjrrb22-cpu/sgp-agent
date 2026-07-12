@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'sgp_agent_core.dart';
+import 'sgp_app_theme.dart';
 
 /// 절차 경고를 실행 가능한 단계로 구조화.
 class ProceduralActionStep {
@@ -207,7 +208,10 @@ class _ProceduralSafeguardDialogState extends State<_ProceduralSafeguardDialog> 
                 ),
               Text(
                 '아래 단계를 순서대로 이행하고 각 항목을 체크하세요.',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: SgpFieldColors.fieldGuideBody,
+                ),
               ),
               const SizedBox(height: 12),
               ..._steps.map(_buildStepCard),
@@ -220,7 +224,10 @@ class _ProceduralSafeguardDialogState extends State<_ProceduralSafeguardDialog> 
               const SizedBox(height: 4),
               Text(
                 '${_completed.length}/${_steps.length} 단계 완료',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: SgpFieldColors.fieldGuideBody,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -272,12 +279,19 @@ class _ProceduralSafeguardDialogState extends State<_ProceduralSafeguardDialog> 
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
-                  color: done ? Colors.green.shade800 : color,
+                  color: done ? const Color(0xFF1B5E20) : color,
                   decoration: done ? TextDecoration.lineThrough : null,
                 ),
               ),
               subtitle: step.legalReference != null
-                  ? Text(step.legalReference!, style: const TextStyle(fontSize: 10))
+                  ? Text(
+                      step.legalReference!,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: SgpFieldColors.fieldGuideBody,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
                   : null,
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -286,7 +300,14 @@ class _ProceduralSafeguardDialogState extends State<_ProceduralSafeguardDialog> 
             ),
             Padding(
               padding: const EdgeInsets.only(left: 8),
-              child: Text(step.detail, style: const TextStyle(fontSize: 12, height: 1.4)),
+              child: Text(
+                step.detail,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: SgpFieldColors.fieldGuideBody,
+                ),
+              ),
             ),
             if (step.subSteps.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -298,7 +319,17 @@ class _ProceduralSafeguardDialogState extends State<_ProceduralSafeguardDialog> 
                     children: [
                       Icon(Icons.subdirectory_arrow_right, size: 14, color: color),
                       const SizedBox(width: 4),
-                      Expanded(child: Text(sub, style: const TextStyle(fontSize: 11, height: 1.35))),
+                      Expanded(
+                        child: Text(
+                          sub,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            height: 1.35,
+                            color: SgpFieldColors.fieldGuideBody,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
