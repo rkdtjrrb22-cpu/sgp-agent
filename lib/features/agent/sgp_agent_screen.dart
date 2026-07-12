@@ -22,6 +22,9 @@ import 'sgp_quantum_legal_engine.dart';
 import 'sgp_court_precedents_ota.dart';
 import 'sgp_legal_hierarchy.dart';
 import 'sgp_legal_hierarchy_ota.dart';
+import 'sgp_legal_ontology_session.dart';
+import 'sgp_demo_field_scenario.dart';
+import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
 import 'sgp_app_theme.dart';
@@ -131,8 +134,67 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     await SgpLegalHierarchyOta.instance.initialize(
       loadAsset: () => rootBundle.loadString(SgpLegalHierarchyRegistry.assetPath),
     );
+    SgpLegalOntologySession.instance.loadFromRegistry();
     if (!mounted) return;
-    setState(() => _hierarchyOtaStatus = SgpLegalHierarchyOta.instance.lastRefreshStatus);
+    final ota = SgpLegalHierarchyOta.instance.lastRefreshStatus;
+    final triples = SgpLegalOntologySession.instance.tripleCount;
+    final stub = SgpProductionStub.modeLabel;
+    setState(
+      () => _hierarchyOtaStatus = '$ota · ontology:$triples · $stub',
+    );
+  }
+
+  Future<void> _loadFieldDemoScenario() async {
+    try {
+      final scenario = await SgpDemoFieldScenarioLoader.load();
+      _rawTextController.text = scenario.radioText;
+      setState(
+        () => _checklist = LawCheckList(
+          isWeaponUsed: scenario.checklist.isWeaponUsed,
+          isDomesticViolence: scenario.checklist.isDomesticViolence,
+          isIntoxicated: scenario.checklist.isIntoxicated,
+          isFleeing: scenario.checklist.isFleeing,
+          isSeizureConstraintReviewed:
+              scenario.checklist.isSeizureConstraintReviewed,
+        ),
+      );
+      _applyRuleMapping();
+      await _refreshQuantumAnalysisAsync();
+      if (!mounted) return;
+
+      final triples = SgpLegalOntologySession.instance.tripleCount;
+      final comparison = _quantumComparison;
+      final arrestOk = scenario.matchesArrestSuggestion(scenario.radioText);
+
+      if (comparison != null) {
+        final verify = scenario.verifyAnalysisSnapshot(
+          incidentTypeJsonKey: comparison.incidentType.jsonKey,
+          hierarchyChainTitles:
+              comparison.hierarchy?.chain.map((n) => n.title).toList() ?? [],
+          urgencyLevelName: comparison.urgencyLevel.name,
+        );
+        if (!verify.ok) {
+          _showSnack('시연 검증 주의: ${verify.issues.join('; ')}');
+        } else if (!arrestOk) {
+          _showSnack('시연 검증 주의: 체포 방식 기대값 불일치');
+        } else if (triples < scenario.expected.ontologyTripleCountMin) {
+          _showSnack(
+            '시연 검증 주의: 온톨로지 트리플 $triples개 '
+            '(최소 ${scenario.expected.ontologyTripleCountMin})',
+          );
+        } else {
+          _showSnack(
+            '시연 시나리오 로드 완료 — ${scenario.title} · '
+            '온톨로지 $triples개 트리플 · 양자분석 OK',
+          );
+          _maybeSuggestArrestTimeline(_checklist);
+        }
+      } else {
+        _showSnack('시연 텍스트 로드됨 — 양자 분석 패널을 확인하세요.');
+      }
+    } catch (e) {
+      if (mounted) _showSnack('시연 로드 실패: $e');
+    }
   }
 
   Future<void> _refreshQuantumAnalysisAsync() async {
@@ -901,6 +963,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       appBar: AppBar(
         title: const Text('SGP-Agent'),
         actions: [
+          IconButton(
+            tooltip: '현장 시연 시나리오 (Mock)',
+            icon: const Icon(Icons.play_circle_outline),
+            onPressed: _loadFieldDemoScenario,
+          ),
           IconButton(
             tooltip: '저장 기록',
             icon: Badge(

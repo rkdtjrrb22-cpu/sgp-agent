@@ -54,9 +54,9 @@ chmod +x scripts/verify-ios-build.sh
 ./scripts/verify-ios-build.sh
 ```
 
-내부적으로 `pod install` → `flutter analyze` → `flutter build ios --release` (또는 Xcode archive)를 수행합니다.
+내부적으로 `pod install` → `flutter analyze lib ios` → `flutter build ios --no-codesign`을 수행합니다.
 
-> **Windows:** Flutter SDK에 `build ios` 서브커맨드가 없습니다. iOS 바이너리 검증은 **macOS + Xcode**에서만 가능합니다.
+> **Windows 정적 검토 (2026-07-12):** `scripts/verify-ios-build.sh`는 Bash 스크립트이므로 `dart analyze` 대상이 아닙니다. Windows에서 `set -euo pipefail`·경로·Flutter 서브커맨드 순서를 수동 검토했으며 문법·논리 결함 없음을 확인했습니다. 실제 iOS 바이너리 빌드는 macOS에서만 실행합니다.
 
 ## 4. 크로스 플랫폼 검증 (Windows)
 

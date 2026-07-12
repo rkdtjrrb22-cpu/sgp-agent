@@ -13,8 +13,8 @@ dart analyze lib bin tool/cron deploy
 if errorlevel 1 exit /b 1
 
 echo.
-echo [2/3] dart test (agent core)
-dart test test\features\agent\sgp_legal_hierarchy_test.dart test\features\agent\sgp_npa_iam_jwt_test.dart test\features\agent\sgp_npa_iam_jwks_test.dart test\features\agent\sgp_npa_iam_client_test.dart
+echo [2/3] dart test (agent core + demo stub)
+dart test test\features\agent\sgp_legal_hierarchy_test.dart test\features\agent\sgp_legal_ontology_test.dart test\features\agent\sgp_npa_iam_jwt_test.dart test\features\agent\sgp_npa_iam_jwks_test.dart test\features\agent\sgp_npa_iam_client_test.dart test\features\agent\sgp_demo_field_scenario_test.dart test\features\agent\sgp_legal_ontology_session_test.dart test\features\agent\sgp_production_config_test.dart
 if errorlevel 1 exit /b 1
 
 echo.

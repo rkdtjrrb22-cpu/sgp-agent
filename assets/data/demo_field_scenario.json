@@ -1,0 +1,33 @@
+{
+  "id": "demo_mutual_combat_gangnam",
+  "title": "서울 강남 쌍방 폭행 — 현장 시연",
+  "version": "1.0",
+  "radio_text": "14:32 서울 강남구 역삼동 교차로. 신고자 A·B 쌍방 폭행. A가 먼저 밀쳤으나 B가 주먹 2회 반격. 흉기 없음. 주취 아님. 현장 도주 없음. 피해자 B 휴대폰 파손. 현행범 체포 검토 요청.",
+  "checklist": {
+    "isWeaponUsed": false,
+    "isDomesticViolence": false,
+    "isIntoxicated": false,
+    "isFleeing": false,
+    "isSeizureConstraintReviewed": false
+  },
+  "expected": {
+    "incident_type": "mutual_combat",
+    "local_gov_code": "11",
+    "arrest_type": "currentOffender",
+    "hierarchy_titles_contains": ["형법", "형사소송법"],
+    "ontology_triple_count_min": 100,
+    "urgency_level": "caution",
+    "has_hierarchy_chain": true
+  },
+  "verification_steps": [
+    "무전 텍스트 입력 후 양자 비교 패널 표시",
+    "위계 체인(헌법→형법→형소법) 및 온톨로지 트리플 로드 확인",
+    "「2·3단계: 법리 추론」실행 후 Pro 분석 카드 확인",
+    "「체포 확정 — 타임라인 시작」→ T-0 카운트다운 표시"
+  ],
+  "timeline_hint": {
+    "arrest_type": "currentOffender",
+    "first_deadline_hours": 24,
+    "labels": ["체포통지 24h", "영장신청 45h", "검사청구 48h"]
+  }
+}

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'sgp_agent_core.dart';
 import 'sgp_legal_compliance.dart';
 import 'sgp_npa_iam_client.dart';
+import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_api.dart';
 import 'sgp_quantum_legal_engine.dart';
 
@@ -47,6 +48,23 @@ abstract final class SgpQuantumLegalRemote {
         baseUrl: NpaIamClientSession.apiBaseUrl,
       );
       if (remote != null) return remote;
+    }
+    if (SgpProductionStub.isActive) {
+      final request = QuantumLegalResolveRequest(
+        actor: QuantumLegalActorContext(
+          orgId: orgId,
+          localGovCode: localGovCode,
+          taskCategory: 'field_arrest',
+        ),
+        situation: QuantumLegalSituation(
+          rawText: rawText,
+          checklist: checklist,
+        ),
+      );
+      return SgpProductionStub.resolveLocal(
+        request: request,
+        localAnalyze: localAnalyze,
+      ).comparison;
     }
     return localAnalyze();
   }
