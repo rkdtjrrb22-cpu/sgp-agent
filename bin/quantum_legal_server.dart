@@ -13,15 +13,23 @@ import 'package:sgp_agent/features/agent/sgp_legal_hierarchy.dart';
 import 'package:sgp_agent/features/agent/sgp_legal_ontology.dart';
 import 'package:sgp_agent/features/agent/sgp_legal_ontology_api.dart';
 import 'package:sgp_agent/features/agent/sgp_npa_iam_jwt.dart';
+import 'package:sgp_agent/features/agent/sgp_npa_iam_jwks.dart';
 import 'package:sgp_agent/features/agent/sgp_quantum_legal_api.dart';
 
 late LegalOntologyGraph _ontologyGraph;
 late NpaIamJwtConfig _iamConfig;
+late NpaIamJwksVerifier _jwksVerifier;
 
 Future<void> main() async {
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
   final seedPath = Platform.environment['SEED_PATH'] ?? 'assets/data/legal_hierarchy_seed.json';
   _iamConfig = NpaIamJwtConfig.fromEnvironment(Platform.environment);
+  _jwksVerifier = NpaIamJwksVerifier();
+
+  if (_iamConfig.shouldVerifyJwksSignature) {
+    final warmed = await _jwksVerifier.warmUp(_iamConfig.jwksUrl);
+    stderr.writeln('JWKS warm-up: ${warmed ? 'ok' : 'failed'} (${_iamConfig.jwksUrl})');
+  }
 
   final seedFile = File(seedPath);
   if (!seedFile.existsSync()) {
@@ -37,7 +45,7 @@ Future<void> main() async {
     'Loaded ${SgpLegalHierarchyRegistry.instance.allNodes.length} nodes, '
     '${_ontologyGraph.triples.length} ontology triples',
   );
-  stderr.writeln('IAM JWT mode: ${_iamConfig.mode.name}');
+  stderr.writeln('IAM JWT mode: ${_iamConfig.mode.name} | JWKS verify: ${_iamConfig.shouldVerifyJwksSignature}');
 
   final router = Router();
   router.get('/health', (_) => Response.ok('ok'));
@@ -69,6 +77,7 @@ bool _authorize(Request request, QuantumLegalActorContext actor) {
     actor: actor,
     bearerToken: authHeader,
     config: _iamConfig,
+    jwksVerifier: _jwksVerifier,
   );
 }
 
@@ -95,7 +104,11 @@ Future<Response> _resolveHandler(Request request) async {
   final resolveRequest = QuantumLegalResolveRequest.fromJson(json);
   if (!_authorize(request, resolveRequest.actor)) {
     final authHeader = request.headers['authorization'];
-    final verify = NpaIamJwtVerifier.verify(bearerToken: authHeader, config: _iamConfig);
+    final verify = NpaIamJwtVerifier.verify(
+      bearerToken: authHeader,
+      config: _iamConfig,
+      jwksVerifier: _jwksVerifier,
+    );
     return _unauthorized(verify.error ?? 'JWT org_id mismatch');
   }
 

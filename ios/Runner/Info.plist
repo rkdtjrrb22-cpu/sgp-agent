@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>SGP-Agent</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>sgp_agent</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- STT (speech_to_text) — 통비법 준수 고지 후 사용자 조작 시에만 사용 -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>현장 음성 기록(STT)을 위해 마이크가 필요합니다. 수사관이 직접 시작·종료하며, 백그라운드 상시 녹음은 하지 않습니다.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>현장 대화·무전을 텍스트로 변환하여 수사 보조 분석에 사용합니다.</string>
+	<!-- 향후 위치 기반 지자체(LV5~6) 크로스 필터링 -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>현장 소재지(시·군·구)를 확인하여 해당 지역 조례·자치법령(LV5~6)만 교차 필터링합니다. 백그라운드 추적은 하지 않습니다.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>지자체 법령 매칭은 앱 사용 중(포그라운드)에만 수행합니다. 상시 위치 추적·감시는 사용하지 않습니다.</string>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>FieldOrdinanceFilter</key>
+		<string>현장 조례·지자체 법령 자동 매칭을 위해 일시적으로 위치를 확인합니다.</string>
+	</dict>
+	<!-- 원격 API·OTA (프로덕션 IAM 연동) — 정통법 승인 후 활성 -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>승인된 내부망 Quantum Legal API 및 위계 OTA 서버와 통신하기 위해 로컬 네트워크 접근이 필요할 수 있습니다.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_sgp-agent._tcp</string>
+	</array>
+	<!-- 향후 사법 타임라인·체포 시한 알림 -->
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>체포 시한·영장 신청 마감 등 사법 절차 알림을 수신합니다. 긴급 현장 판단 보조 목적입니다.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+</dict>
+</plist>

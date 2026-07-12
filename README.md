@@ -201,10 +201,23 @@ tools\flutter-direct.cmd run -d YOUR_DEVICE_ID
 | [`docs/작업지시서.md`](docs/작업지시서.md) | 일일 재개용 작업 지시·체크리스트 |
 | [`docs/s5_api_and_db.md`](docs/s5_api_and_db.md) | **S5** REST API·DB DDL·JWT·참조 서버 |
 | [`docs/s6_ontology_and_production.md`](docs/s6_ontology_and_production.md) | **S6** 온톨로지·경찰 IAM·프로덕션 Cron·배포 |
+| [`docs/production_kickoff_guide.md`](docs/production_kickoff_guide.md) | **운영 킥오프** — deploy·IAM·스테이징 체크리스트 |
+| [`docs/ios_setup_guide.md`](docs/ios_setup_guide.md) | **iOS** 빌드·Podfile·권한·macOS 검증 스크립트 |
 
 ## 빌드
 
-**실행 대상: Android 단말만** (Windows 데스크톱 미지원 — `device-id=windows` 사용 시 오류)
+**실행 대상: Android 단말 (주)** · iOS는 macOS에서 시뮬레이터/TestFlight ([`docs/ios_setup_guide.md`](docs/ios_setup_guide.md))
+
+### iOS (macOS)
+
+```bash
+./scripts/verify-ios-build.sh
+# 또는: cd ios && pod install && flutter run -d "iPhone 16"
+```
+
+Windows에서는 `scripts\verify-cross-platform.cmd` (Android + analyze + IAM 테스트).
+
+### Android
 
 ```cmd
 cd C:\SGP-Agent
@@ -227,11 +240,11 @@ adb install -r build\app\outputs\flutter-apk\app-debug.apk
 **8단계 위계 로드맵 Phase 1~3 완료 (S0~S6).** 운영 전환 시 아래만 진행.
 
 ### 운영 배포 체크리스트
-- [ ] 경찰청 IAM JWT 발급 연동 + `NPA_IAM_JWT_MODE=claims` (`docs/s6_ontology_and_production.md`)
+- [ ] [`docs/production_kickoff_guide.md`](docs/production_kickoff_guide.md) 킥오프 절차 완료
+- [ ] `dart run deploy/validate_production_env.dart` 통과
+- [ ] 경찰청 IAM JWT + `NpaIamClientSession` 단말 프로비저닝
 - [ ] `kEnableRemoteResolve = true` (정통법·보안업무규정 승인)
-- [ ] `kEnableLegalHierarchyOta = true` + `X-SGP-Signature` 공식 키 설정
-- [ ] `deploy/docker-compose.yml` 운영 API 배포 + `sql/s6_ontology_ddl.sql` 적용
-- [ ] `LAW_GO_KR_OC_KEY` 설정 후 `dart run tool/cron/sync_law_nodes_production.dart`
+- [ ] iOS TestFlight/MDM ([`docs/ios_setup_guide.md`](docs/ios_setup_guide.md))
 
 ### 검증
 ```cmd
@@ -241,6 +254,11 @@ dart run tool/cron/sync_law_nodes_production.dart
 dart run bin/quantum_legal_server.dart
 tools\flutter-direct.cmd build apk --debug
 ```
+
+### Master Plan 2/3 (2026-07-12, 미커밋)
+- iOS 타깃·Podfile·Info.plist·검증 스크립트
+- JWKS RS256 (`sgp_npa_iam_jwks.dart`) + IAM 클라이언트
+- Docker compose 리소스·헬스체크·법제처 Cron 재시도
 
 ### 알려진 이슈
 - `flutter test` isolate hang — `dart test` 사용 (27 tests)

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import 'sgp_agent_core.dart';
 import 'sgp_legal_compliance.dart';
+import 'sgp_npa_iam_client.dart';
 import 'sgp_quantum_legal_api.dart';
 import 'sgp_quantum_legal_engine.dart';
 
@@ -32,6 +33,18 @@ abstract final class SgpQuantumLegalRemote {
         localGovCode: localGovCode,
         bearerToken: bearerToken,
         baseUrl: baseUrl,
+      );
+      if (remote != null) return remote;
+    }
+    if (kEnableRemoteResolve && NpaIamClientSession.isReadyForRemote) {
+      final remote = await resolveRemote(
+        rawText: rawText,
+        checklist: checklist,
+        orgId: NpaIamClientSession.actorContext(fallbackOrgId: orgId).orgId ?? orgId,
+        localGovCode:
+            localGovCode ?? NpaIamClientSession.actorContext(fallbackOrgId: orgId).localGovCode,
+        bearerToken: NpaIamClientSession.bearerToken!,
+        baseUrl: NpaIamClientSession.apiBaseUrl,
       );
       if (remote != null) return remote;
     }

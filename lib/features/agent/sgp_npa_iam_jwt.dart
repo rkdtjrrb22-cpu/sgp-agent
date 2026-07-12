@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 
 import 'sgp_actor_session.dart';
+import 'sgp_npa_iam_jwks.dart';
 
 /// 경찰 IAM JWT 검증 모드.
 enum NpaIamJwtMode {
@@ -121,6 +122,7 @@ class NpaIamJwtConfig {
     this.expectedIssuer = 'https://iam.police.go.kr',
     this.expectedAudience = 'sgp-agent-api',
     this.jwksUrl,
+    this.verifyJwksSignature = false,
     this.clock = const _UtcClock(),
   });
 
@@ -128,6 +130,7 @@ class NpaIamJwtConfig {
   final String expectedIssuer;
   final String expectedAudience;
   final String? jwksUrl;
+  final bool verifyJwksSignature;
   final Clock clock;
 
   factory NpaIamJwtConfig.fromEnvironment(Map<String, String> env) {
@@ -142,8 +145,20 @@ class NpaIamJwtConfig {
       expectedIssuer: env['NPA_IAM_ISSUER'] ?? 'https://iam.police.go.kr',
       expectedAudience: env['NPA_IAM_AUDIENCE'] ?? 'sgp-agent-api',
       jwksUrl: env['NPA_IAM_JWKS_URL'],
+      verifyJwksSignature: _envBool(env['NPA_IAM_VERIFY_JWKS'], defaultValue: mode != NpaIamJwtMode.none),
     );
   }
+
+  bool get shouldVerifyJwksSignature =>
+      verifyJwksSignature &&
+      (mode == NpaIamJwtMode.claimsOnly || mode == NpaIamJwtMode.strict) &&
+      jwksUrl != null &&
+      jwksUrl!.isNotEmpty;
+}
+
+bool _envBool(String? raw, {required bool defaultValue}) {
+  if (raw == null || raw.isEmpty) return defaultValue;
+  return raw.toLowerCase() == 'true' || raw == '1';
 }
 
 abstract class Clock {
@@ -173,8 +188,14 @@ abstract final class NpaIamJwtVerifier {
   static NpaIamJwtVerificationResult verify({
     required String? bearerToken,
     NpaIamJwtConfig config = const NpaIamJwtConfig(),
+    NpaIamJwksVerifier? jwksVerifier,
   }) {
-    final claims = NpaIamClaims.fromBearerToken(bearerToken);
+    final rawToken = _extractToken(bearerToken);
+    if (rawToken == null) {
+      return const NpaIamJwtVerificationResult(ok: false, error: 'invalid_jwt');
+    }
+
+    final claims = NpaIamClaims.fromJwtPayloadString(rawToken);
     if (claims == null) {
       return const NpaIamJwtVerificationResult(ok: false, error: 'invalid_jwt');
     }
@@ -211,7 +232,60 @@ abstract final class NpaIamJwtVerifier {
       );
     }
 
+    final sigResult = _verifyJwksSignature(
+      rawToken: rawToken,
+      config: config,
+      jwksVerifier: jwksVerifier,
+    );
+    if (sigResult != null) return sigResult;
+
     return NpaIamJwtVerificationResult(ok: true, claims: claims);
+  }
+
+  static NpaIamJwtVerificationResult? _verifyJwksSignature({
+    required String rawToken,
+    required NpaIamJwtConfig config,
+    NpaIamJwksVerifier? jwksVerifier,
+  }) {
+    if (!config.shouldVerifyJwksSignature) return null;
+
+    final alg = _jwtAlg(rawToken);
+    if (alg == null) {
+      return const NpaIamJwtVerificationResult(ok: false, error: 'invalid_jwt_header');
+    }
+    if (alg.toLowerCase() == 'none') {
+      return const NpaIamJwtVerificationResult(ok: false, error: 'unsigned_token_rejected');
+    }
+    if (alg != 'RS256') {
+      return NpaIamJwtVerificationResult(ok: false, error: 'unsupported_alg:$alg');
+    }
+    if (jwksVerifier == null || !jwksVerifier.hasCache) {
+      return const NpaIamJwtVerificationResult(ok: false, error: 'jwks_not_ready');
+    }
+    if (!jwksVerifier.verifyRs256Signature(rawToken)) {
+      return const NpaIamJwtVerificationResult(ok: false, error: 'invalid_signature');
+    }
+    return null;
+  }
+
+  static String? _jwtAlg(String jwt) {
+    final parts = jwt.split('.');
+    if (parts.isEmpty) return null;
+    try {
+      final normalized = parts[0].replaceAll('-', '+').replaceAll('_', '/');
+      final pad = normalized.length % 4;
+      final padded =
+          pad == 0 ? normalized : normalized.padRight(normalized.length + (4 - pad), '=');
+      final map = jsonDecode(utf8.decode(base64Url.decode(padded))) as Map<String, dynamic>;
+      return map['alg'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String? _extractToken(String? bearerToken) {
+    if (bearerToken == null || bearerToken.isEmpty) return null;
+    return bearerToken.startsWith('Bearer ') ? bearerToken.substring(7) : bearerToken;
   }
 
   /// actor body와 JWT 클레임 정합성 (S5 호환 + 경찰 IAM 확장).
@@ -219,8 +293,13 @@ abstract final class NpaIamJwtVerifier {
     required QuantumLegalActorContext actor,
     required String? bearerToken,
     NpaIamJwtConfig config = const NpaIamJwtConfig(),
+    NpaIamJwksVerifier? jwksVerifier,
   }) {
-    final result = verify(bearerToken: bearerToken, config: config);
+    final result = verify(
+      bearerToken: bearerToken,
+      config: config,
+      jwksVerifier: jwksVerifier,
+    );
     if (!result.ok) return false;
     return actor.matchesClaims(result.claims);
   }

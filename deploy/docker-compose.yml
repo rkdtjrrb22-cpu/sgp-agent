@@ -1,4 +1,4 @@
-# Sprint S6 — 프로덕션 참조 스택 (PostgreSQL + API 서버)
+# Sprint S6+ — 프로덕션 참조 스택 (PostgreSQL 14+ + API, 리소스 제한·헬스체크)
 # 사용: deploy 디렉터리에서
 #   cp quantum_legal_production.env.example quantum_legal_production.env
 #   docker compose up -d
@@ -18,6 +18,19 @@ services:
     volumes:
       - sgp_legal_pgdata:/var/lib/postgresql/data
       - ../sql/s6_ontology_ddl.sql:/docker-entrypoint-initdb.d/02_s6_ontology.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sgp_legal} -d ${POSTGRES_DB:-sgp_legal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
 
   quantum-legal-api:
     image: dart:3.11-sdk
@@ -29,6 +42,10 @@ services:
       PORT: ${PORT:-8080}
       SEED_PATH: ${SEED_PATH:-assets/data/legal_hierarchy_seed.json}
       NPA_IAM_JWT_MODE: ${NPA_IAM_JWT_MODE:-claims}
+      NPA_IAM_ISSUER: ${NPA_IAM_ISSUER:-https://iam.police.go.kr}
+      NPA_IAM_AUDIENCE: ${NPA_IAM_AUDIENCE:-sgp-agent-api}
+      NPA_IAM_JWKS_URL: ${NPA_IAM_JWKS_URL:-}
+      NPA_IAM_VERIFY_JWKS: ${NPA_IAM_VERIFY_JWKS:-true}
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     volumes:
@@ -36,7 +53,21 @@ services:
     command: >
       sh -c "dart pub get && dart run bin/quantum_legal_server.dart"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "dart", "run", "deploy/health_check.dart"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          memory: 512M
 
 volumes:
   sgp_legal_pgdata:

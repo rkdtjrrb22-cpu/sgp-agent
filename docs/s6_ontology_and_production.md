@@ -177,6 +177,10 @@ curl http://127.0.0.1:8080/v1/legal-ontology/graph?root_id=KR-CONST-001^&depth=2
 ```cmd
 dart test test\features\agent\sgp_legal_ontology_test.dart test\features\agent\sgp_npa_iam_jwt_test.dart
 dart test test\features\agent\sgp_legal_hierarchy_test.dart test\features\agent\sgp_quantum_legal_api_test.dart
+dart run deploy/validate_production_env.dart deploy/quantum_legal_production.env.example
 dart run tool/cron/sync_law_nodes_production.dart
 dart run bin/quantum_legal_server.dart
 ```
+
+**운영 킥오프:** [`docs/production_kickoff_guide.md`](production_kickoff_guide.md)  
+**iOS 빌드:** [`docs/ios_setup_guide.md`](ios_setup_guide.md)

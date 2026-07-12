@@ -45,6 +45,9 @@ const bool kEnableRemoteResolve = false;
 /// Sprint S6 — 경찰 IAM JWT strict 클레임 검증 (MDM·IAM 연동 후 활성).
 const bool kEnableNpaIamStrictJwt = false;
 
+/// Sprint S6+ — 운영 Quantum Legal API 기본 URL (MDM·빌드별 오버라이드 가능).
+const String kProductionQuantumLegalApiBaseUrl = 'https://api.sgp-agent.police.go.kr';
+
 /// STT 최초 사용 시 통비법 준수 고지 (앱 세션당 1회).
 class SgpSttComplianceGate {
   SgpSttComplianceGate._();
