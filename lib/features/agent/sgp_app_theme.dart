@@ -152,3 +152,17 @@ abstract final class SgpFieldColors {
   /// 연녹/연회색 카드 내부 설명 본문.
   static const fieldGuideBody = Color(0xFF2C3E50);
 }
+
+/// S8-UI — 종합 민원 가이드 고대비·글래스 팔레트.
+abstract final class SgpCivilGuideColors {
+  static const deepNight = Color(0xFF1A1C23);
+  static const spaceGray = Color(0xFF121214);
+  static const pureWhite = Color(0xFFFFFFFF);
+  static const neonCyan = Color(0xFF00E5FF);
+  static const emerald = Color(0xFF00E676);
+  static const goldenTimeBg = Color(0xFF3A1D1D);
+  static const goldenTimeText = Color(0xFFFF8A80);
+  static const glassFill = Color(0x14FFFFFF);
+  static const dispatchWarningBg = Color(0xFF2A1F14);
+  static const dispatchWarningText = Color(0xFFFFB74D);
+}

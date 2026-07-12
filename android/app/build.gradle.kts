@@ -31,6 +31,17 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
+        externalNativeBuild {
+            cmake {
+                cppFlags += listOf("-std=c++17", "-O2")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
     }
 
     buildTypes {

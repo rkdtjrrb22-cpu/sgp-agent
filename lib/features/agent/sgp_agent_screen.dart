@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'sgp_agent_core.dart';
 import 'sgp_agent_storage.dart';
 import 'sgp_agent_stt.dart';
+import 'sgp_stt_radio_pipeline.dart';
 import 'sgp_precedent_dictionary.dart';
 import 'sgp_advanced_analysis_widget.dart';
 import 'sgp_readable_layout.dart';
@@ -84,6 +85,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   SttSessionState _sttState = SttSessionState.idle;
   bool _sttBusy = false;
   String _sttSourceLabel = 'STT 초기화 중…';
+  StreamSubscription<SttAudioInputSnapshot>? _audioInputSub;
   SgpProcedureTimeline? _procedureTimeline;
   SgpQuantumLegalComparison? _quantumComparison;
   String? _otaStatus;
@@ -112,7 +114,26 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _initCourtPrecedentsOta();
     _initLegalHierarchy();
     _initStt();
+    _subscribeAudioHotplug();
     _refreshSavedRecords();
+  }
+
+  void _subscribeAudioHotplug() {
+    _audioInputSub?.cancel();
+    _audioInputSub = SgpNativeBridge.onAudioInputChanged.listen(
+      _onAudioInputChanged,
+      onError: (_) {},
+    );
+  }
+
+  void _onAudioInputChanged(SttAudioInputSnapshot snapshot) {
+    if (!mounted) return;
+    _sttEngine.applyAudioInputSnapshot(snapshot);
+    setState(() {
+      _sttSourceLabel = _sttEngine.canTranscribe
+          ? _sttEngine.inputSourceLabel
+          : (_sttEngine.lastError ?? 'STT 사용 불가 — 수동 입력');
+    });
   }
 
   void _onSttFocusChanged() {
@@ -675,6 +696,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
           ? result.text
           : '$existing\n${result.text}';
       _rawTextController.text = merged;
+      // 시맨틱 라우터(민원·물리력·양자 비교)로 직접 피딩.
       _applyRuleMapping();
 
       setState(() {
@@ -683,9 +705,17 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       });
       _showSnack(
         result.offline
-            ? '온디바이스 STT 입력 완료 (오프라인)'
-            : 'STT 입력 완료',
+            ? '온디바이스 STT 입력 완료 (오프라인 · 신뢰도 ${(result.confidence * 100).round()}%)'
+            : 'STT 입력 완료 (신뢰도 ${(result.confidence * 100).round()}%)',
       );
+    } on SttLowConfidenceException catch (e) {
+      if (mounted) {
+        setState(() {
+          _sttState = SttSessionState.idle;
+          _sttBusy = false;
+        });
+        _showSnack('⚠️ $e');
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -719,6 +749,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   @override
   void dispose() {
     _ruleDebounce?.cancel();
+    _audioInputSub?.cancel();
     _rawTextController.removeListener(_onRawTextChanged);
     _sttFocusNode.removeListener(_onSttFocusChanged);
     _rawTextController.dispose();
@@ -900,7 +931,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
 
     try {
       final file = await saveAgentRecord(record);
-      final summary = await SavedRecordSummary.fromFile(file);
+      final summary = await SavedRecordSummary.fromFile(
+        file,
+        cipher: SgpNativeBridge.cacheCipher,
+      );
 
       await _refreshSavedRecords();
 
@@ -1227,6 +1261,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
           children: [
             if (_modelLoading)
               const LinearProgressIndicator(minHeight: 3),
+            if (_sttBusy) ...[
+              const SizedBox(height: 8),
+              const SgpSttAnalyzingBanner(),
+            ],
             if (_statusMessage != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -1397,10 +1435,38 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                 hintStyle: TextStyle(color: SgpAppTheme.textMuted),
                 filled: true,
                 fillColor: SgpAppTheme.surfaceHigh,
-                suffixIcon: IconButton(
-                  tooltip: '클립보드 붙여넣기',
-                  icon: Icon(Icons.content_paste, color: accent.withValues(alpha: 0.85)),
-                  onPressed: _pasteFromClipboard,
+                suffixIcon: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: '무전 마이크 STT 수신',
+                      icon: Icon(
+                        _sttBusy ? Icons.settings_voice : Icons.radio,
+                        color: _sttBusy
+                            ? SgpCotColors.caution
+                            : accent,
+                        size: 24,
+                      ),
+                      onPressed: _sttBusy ? null : _startSttCapture,
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '클립보드 붙여넣기',
+                      icon: Icon(
+                        Icons.content_paste,
+                        color: accent.withValues(alpha: 0.85),
+                        size: 20,
+                      ),
+                      onPressed: _pasteFromClipboard,
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 44,
+                      ),
+                    ),
+                  ],
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),

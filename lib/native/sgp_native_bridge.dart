@@ -1,9 +1,12 @@
 /// Android 네이티브 브리지 — Whisper STT / sLLM (llama.cpp) 연동 지점.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 import '../features/agent/sgp_secure_cache_crypto.dart';
+import '../features/agent/sgp_stt_radio_pipeline.dart';
 
 /// 네이티브 엔진 상태.
 class SgpNativeCapabilities {
@@ -13,6 +16,9 @@ class SgpNativeCapabilities {
     required this.speechRecognizerAvailable,
     required this.usbAudioDetected,
     this.bluetoothScoActive = false,
+    this.activeInputLabel = 'Device microphone',
+    this.whisperModelReady = false,
+    this.whisperNativeLoaded = false,
   });
 
   final bool whisperBound;
@@ -20,6 +26,9 @@ class SgpNativeCapabilities {
   final bool speechRecognizerAvailable;
   final bool usbAudioDetected;
   final bool bluetoothScoActive;
+  final String activeInputLabel;
+  final bool whisperModelReady;
+  final bool whisperNativeLoaded;
 
   factory SgpNativeCapabilities.fromMap(Map<dynamic, dynamic> map) {
     return SgpNativeCapabilities(
@@ -28,6 +37,22 @@ class SgpNativeCapabilities {
       speechRecognizerAvailable: map['speechRecognizerAvailable'] == true,
       usbAudioDetected: map['usbAudioDetected'] == true,
       bluetoothScoActive: map['bluetoothScoActive'] == true,
+      activeInputLabel: map['activeInputLabel'] as String? ?? 'Device microphone',
+      whisperModelReady: map['whisperModelReady'] == true,
+      whisperNativeLoaded: map['whisperNativeLoaded'] == true,
+    );
+  }
+
+  SttAudioInputSnapshot toSnapshot({String? reason}) {
+    return SttAudioInputSnapshot(
+      whisperBound: whisperBound,
+      speechRecognizerAvailable: speechRecognizerAvailable,
+      usbAudioDetected: usbAudioDetected,
+      bluetoothScoActive: bluetoothScoActive,
+      activeInputLabel: activeInputLabel,
+      whisperModelReady: whisperModelReady,
+      whisperNativeLoaded: whisperNativeLoaded,
+      reason: reason,
     );
   }
 }
@@ -65,11 +90,15 @@ class SgpNativeSttResult {
     required this.available,
     this.text,
     this.error,
+    this.pcmSamples = 0,
+    this.pcmRms = 0,
   });
 
   final bool available;
   final String? text;
   final String? error;
+  final int pcmSamples;
+  final double pcmRms;
 
   bool get hasTranscript => text != null && text!.trim().isNotEmpty;
 
@@ -78,6 +107,8 @@ class SgpNativeSttResult {
       available: map['available'] == true,
       text: map['text'] as String?,
       error: map['error'] as String?,
+      pcmSamples: map['pcmSamples'] as int? ?? 0,
+      pcmRms: (map['pcmRms'] as num?)?.toDouble() ?? 0,
     );
   }
 }
@@ -87,6 +118,50 @@ class SgpNativeBridge {
   SgpNativeBridge._();
 
   static const MethodChannel _channel = MethodChannel('com.sgp.sgp_agent/native');
+  static const EventChannel _audioEvents =
+      EventChannel('com.sgp.sgp_agent/audio_events');
+
+  static Stream<SttAudioInputSnapshot> get onAudioInputChanged {
+    return _audioEvents.receiveBroadcastStream().map(
+          (event) => SttAudioInputSnapshot.fromMap(
+            Map<dynamic, dynamic>.from(event as Map),
+          ),
+        );
+  }
+
+  static Future<SttAudioInputSnapshot> refreshAudioInput() async {
+    try {
+      final map = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'refreshAudioInput',
+      );
+      if (map == null) return _emptySnapshot();
+      return SttAudioInputSnapshot.fromMap(map);
+    } on MissingPluginException {
+      return _emptySnapshot();
+    }
+  }
+
+  static Future<Map<String, dynamic>> validateSttPipeline() async {
+    try {
+      final map = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'validateSttPipeline',
+      );
+      if (map == null) return const {};
+      return map.map((key, value) => MapEntry(key.toString(), value));
+    } on MissingPluginException {
+      return const {'error': 'native_plugin_missing'};
+    }
+  }
+
+  static SttAudioInputSnapshot _emptySnapshot() {
+    return const SttAudioInputSnapshot(
+      whisperBound: false,
+      speechRecognizerAvailable: false,
+      usbAudioDetected: false,
+      bluetoothScoActive: false,
+      activeInputLabel: 'Unavailable',
+    );
+  }
 
   static Future<SgpNativeCapabilities> getCapabilities() async {
     try {
@@ -156,6 +231,14 @@ class SgpNativeBridge {
       return await _channel.invokeMethod<bool>('activateRadioAudioRoute') == true;
     } on MissingPluginException {
       return false;
+    }
+  }
+
+  static Future<void> stopRadioAudioRoute() async {
+    try {
+      await _channel.invokeMethod<void>('stopRadioAudioRoute');
+    } on MissingPluginException {
+      // ignore
     }
   }
 

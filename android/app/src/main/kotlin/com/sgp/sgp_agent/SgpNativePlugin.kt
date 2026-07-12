@@ -1,63 +1,64 @@
 package com.sgp.sgp_agent
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.media.AudioManager
-import android.os.Build
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import android.util.Base64
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import org.json.JSONObject
-import java.nio.charset.StandardCharsets
-import java.security.KeyStore
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
 
 /**
  * 온디바이스 AI 네이티브 브리지.
- * - STT: Android SpeechRecognizer (실마이크) + 향후 Whisper JNI 슬롯
+ * - STT: 무전 PCM 캡처 + Whisper JNI + SpeechRecognizer 폴백
  * - sLLM: llama.cpp / GGUF mmap 슬롯 (현재 Dart 폴백)
  */
-class SgpNativePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
-    private lateinit var channel: MethodChannel
+class SgpNativePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
+    private lateinit var methodChannel: MethodChannel
+    private lateinit var audioEventChannel: EventChannel
     private lateinit var appContext: Context
+    private lateinit var radioAudioManager: SgpRadioAudioManager
 
     private var sllmLoaded = false
 
     companion object {
+        private const val METHOD_CHANNEL = "com.sgp.sgp_agent/native"
+        private const val AUDIO_EVENT_CHANNEL = "com.sgp.sgp_agent/audio_events"
         private const val CACHE_KEY_ALIAS = "sgp_agent_cache_key_v1"
         private const val CACHE_ALGORITHM = "AES-256-GCM"
         private const val CACHE_VERSION = 1
         private const val GCM_TAG_BITS = 128
         private const val GCM_NONCE_BYTES = 12
         private val CACHE_AAD =
-            "SGP-Agent|record-cache|v1|AES-256-GCM".toByteArray(StandardCharsets.UTF_8)
+            "SGP-Agent|record-cache|v1|AES-256-GCM".toByteArray(Charsets.UTF_8)
+        private const val MIN_PCM_RMS = 0.002f
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         appContext = binding.applicationContext
-        channel = MethodChannel(binding.binaryMessenger, "com.sgp.sgp_agent/native")
-        channel.setMethodCallHandler(this)
+        radioAudioManager = SgpRadioAudioManager(appContext)
+        methodChannel = MethodChannel(binding.binaryMessenger, METHOD_CHANNEL)
+        methodChannel.setMethodCallHandler(this)
+        audioEventChannel = EventChannel(binding.binaryMessenger, AUDIO_EVENT_CHANNEL)
+        audioEventChannel.setStreamHandler(this)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        channel.setMethodCallHandler(null)
+        methodChannel.setMethodCallHandler(null)
+        audioEventChannel.setStreamHandler(null)
+        radioAudioManager.attachEventSink(null)
+    }
+
+    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+        radioAudioManager.attachEventSink(events)
+    }
+
+    override fun onCancel(arguments: Any?) {
+        radioAudioManager.attachEventSink(null)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "getCapabilities" -> result.success(capabilities())
+            "getCapabilities", "refreshAudioInput" -> result.success(radioAudioManager.refreshSnapshot())
             "loadSllmModel" -> {
-                // TODO: GGUF mmap — llama.cpp JNI
                 val path = call.argument<String>("modelPath")
                 sllmLoaded = path != null && path.isNotEmpty()
                 result.success(
@@ -68,7 +69,6 @@ class SgpNativePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 )
             }
             "runSllmInference" -> {
-                // TODO: 네이티브 토큰 생성
                 result.success(
                     mapOf(
                         "text" to null,
@@ -77,21 +77,23 @@ class SgpNativePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 )
             }
             "checkUsbAudioInput" -> {
-                result.success(detectExternalAudioInput())
+                val snapshot = radioAudioManager.refreshSnapshot()
+                result.success(snapshot["usbAudioDetected"] == true)
             }
             "activateRadioAudioRoute" -> {
-                result.success(activateRadioAudioRoute())
+                result.success(radioAudioManager.activateRadioAudioRoute())
+            }
+            "stopRadioAudioRoute" -> {
+                radioAudioManager.stopRadioAudioRoute()
+                result.success(true)
             }
             "transcribeWhisper" -> {
-                // JNI 라이브러리·GGML 모델이 번들된 빌드에서 이 계약을 구현한다.
-                // 미바인딩 빌드는 Dart의 오프라인 우선 SpeechRecognizer로 안전하게 폴백한다.
-                result.success(
-                    mapOf(
-                        "available" to false,
-                        "text" to null,
-                        "error" to "whisper.cpp JNI/model not bundled",
-                    ),
-                )
+                val timeoutMs = call.argument<Int>("timeoutMs") ?: 25_000
+                val locale = call.argument<String>("locale") ?: "ko"
+                result.success(transcribeWhisper(timeoutMs, locale))
+            }
+            "validateSttPipeline" -> {
+                result.success(validateSttPipeline())
             }
             "encryptCachePayload" -> {
                 try {
@@ -115,117 +117,69 @@ class SgpNativePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
     }
 
-    private fun capabilities(): Map<String, Any> {
-        val speechAvailable = SpeechRecognizer.isRecognitionAvailable(appContext)
-        val btSco = detectBluetoothSco()
+    private fun transcribeWhisper(timeoutMs: Int, locale: String): Map<String, Any?> {
+        val capture = SgpPcmCapture.capture(appContext, timeoutMs, radioAudioManager)
+        if (!capture.success) {
+            return mapOf(
+                "available" to false,
+                "text" to null,
+                "error" to capture.error,
+                "pcmSamples" to 0,
+                "pcmRms" to 0.0,
+            )
+        }
+        if (capture.rmsLevel < MIN_PCM_RMS) {
+            return mapOf(
+                "available" to false,
+                "text" to null,
+                "error" to "Audio level too low — check radio PTT / microphone routing",
+                "pcmSamples" to capture.pcm.size,
+                "pcmRms" to capture.rmsLevel.toDouble(),
+            )
+        }
+
+        val whisper = SgpWhisperEngine.transcribe(
+            appContext,
+            capture.pcm,
+            SgpPcmCapture.SAMPLE_RATE,
+            locale,
+        )
         return mapOf(
-            "whisperBound" to false,
-            "sllmBound" to sllmLoaded,
-            "speechRecognizerAvailable" to speechAvailable,
-            "usbAudioDetected" to detectExternalAudioInput(),
-            "bluetoothScoActive" to btSco,
+            "available" to whisper.available,
+            "text" to whisper.text,
+            "error" to whisper.error,
+            "pcmSamples" to capture.pcm.size,
+            "pcmRms" to capture.rmsLevel.toDouble(),
         )
     }
 
-    private fun detectBluetoothSco(): Boolean {
-        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
-            devices.any { it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.isBluetoothScoOn
-        }
-    }
-
-    /** USB 오디오·유선 헤드셋(무전 케이블) 연결 여부 휴리스틱. */
-    private fun detectExternalAudioInput(): Boolean {
-        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
-            devices.any { device ->
-                val type = device.type
-                type == android.media.AudioDeviceInfo.TYPE_USB_DEVICE ||
-                    type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET ||
-                    type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                    type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.isWiredHeadsetOn || audioManager.isBluetoothScoOn
-        }
-    }
-
-    /** 외부 무전 입력을 Android 통신 오디오 경로로 우선 지정한다. */
-    private fun activateRadioAudioRoute(): Boolean {
-        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val preferred = audioManager.availableCommunicationDevices.firstOrNull { device ->
-                    device.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
-                        device.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET ||
-                        device.type == android.media.AudioDeviceInfo.TYPE_USB_DEVICE ||
-                        device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET
-                }
-                preferred != null && audioManager.setCommunicationDevice(preferred)
-            } else {
-                @Suppress("DEPRECATION")
-                audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-                if (detectBluetoothSco()) {
-                    @Suppress("DEPRECATION")
-                    audioManager.startBluetoothSco()
-                    @Suppress("DEPRECATION")
-                    audioManager.isBluetoothScoOn = true
-                }
-                detectExternalAudioInput()
-            }
-        } catch (_: SecurityException) {
-            false
-        }
-    }
-
-    /** Android Keystore 비내보내기 AES-256 키를 생성하거나 조회한다. */
-    private fun getOrCreateCacheKey(): SecretKey {
-        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        val existing = keyStore.getKey(CACHE_KEY_ALIAS, null) as? SecretKey
-        if (existing != null) return existing
-
-        val generator = KeyGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_AES,
-            "AndroidKeyStore",
-        )
-        val spec = KeyGenParameterSpec.Builder(
-            CACHE_KEY_ALIAS,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-        )
-            .setKeySize(256)
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setRandomizedEncryptionRequired(true)
-            .build()
-        generator.init(spec)
-        return generator.generateKey()
+    private fun validateSttPipeline(): Map<String, Any?> {
+        val snapshot = radioAudioManager.refreshSnapshot().toMutableMap()
+        snapshot["whisperModelPath"] = SgpWhisperEngine.modelFile(appContext).absolutePath
+        snapshot["whisperNativeLoaded"] = SgpWhisperEngine.nativeLibraryLoaded
+        snapshot["minPcmRmsThreshold"] = MIN_PCM_RMS.toDouble()
+        return snapshot
     }
 
     private fun encryptCachePayload(plainText: String): String {
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateCacheKey())
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, getOrCreateCacheKey())
         cipher.updateAAD(CACHE_AAD)
         val nonce = cipher.iv
         check(nonce.size == GCM_NONCE_BYTES) { "Unexpected GCM nonce length" }
-        val cipherText = cipher.doFinal(plainText.toByteArray(StandardCharsets.UTF_8))
+        val cipherText = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
 
-        return JSONObject()
+        return org.json.JSONObject()
             .put("version", CACHE_VERSION)
             .put("algorithm", CACHE_ALGORITHM)
             .put("keyAlias", CACHE_KEY_ALIAS)
-            .put("nonce", Base64.encodeToString(nonce, Base64.NO_WRAP))
-            .put("cipherText", Base64.encodeToString(cipherText, Base64.NO_WRAP))
+            .put("nonce", android.util.Base64.encodeToString(nonce, android.util.Base64.NO_WRAP))
+            .put("cipherText", android.util.Base64.encodeToString(cipherText, android.util.Base64.NO_WRAP))
             .toString()
     }
 
     private fun decryptCachePayload(envelopeJson: String): String {
-        val envelope = JSONObject(envelopeJson)
+        val envelope = org.json.JSONObject(envelopeJson)
         require(envelope.getInt("version") == CACHE_VERSION) {
             "Unsupported cache envelope version"
         }
@@ -236,17 +190,40 @@ class SgpNativePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             "Unexpected cache key alias"
         }
 
-        val nonce = Base64.decode(envelope.getString("nonce"), Base64.NO_WRAP)
-        val cipherText = Base64.decode(envelope.getString("cipherText"), Base64.NO_WRAP)
+        val nonce = android.util.Base64.decode(envelope.getString("nonce"), android.util.Base64.NO_WRAP)
+        val cipherText = android.util.Base64.decode(envelope.getString("cipherText"), android.util.Base64.NO_WRAP)
         require(nonce.size == GCM_NONCE_BYTES) { "Invalid GCM nonce length" }
 
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(
-            Cipher.DECRYPT_MODE,
+            javax.crypto.Cipher.DECRYPT_MODE,
             getOrCreateCacheKey(),
-            GCMParameterSpec(GCM_TAG_BITS, nonce),
+            javax.crypto.spec.GCMParameterSpec(GCM_TAG_BITS, nonce),
         )
         cipher.updateAAD(CACHE_AAD)
-        return String(cipher.doFinal(cipherText), StandardCharsets.UTF_8)
+        return String(cipher.doFinal(cipherText), Charsets.UTF_8)
+    }
+
+    private fun getOrCreateCacheKey(): javax.crypto.SecretKey {
+        val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val existing = keyStore.getKey(CACHE_KEY_ALIAS, null) as? javax.crypto.SecretKey
+        if (existing != null) return existing
+
+        val generator = javax.crypto.KeyGenerator.getInstance(
+            android.security.keystore.KeyProperties.KEY_ALGORITHM_AES,
+            "AndroidKeyStore",
+        )
+        val spec = android.security.keystore.KeyGenParameterSpec.Builder(
+            CACHE_KEY_ALIAS,
+            android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or
+                android.security.keystore.KeyProperties.PURPOSE_DECRYPT,
+        )
+            .setKeySize(256)
+            .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setRandomizedEncryptionRequired(true)
+            .build()
+        generator.init(spec)
+        return generator.generateKey()
     }
 }

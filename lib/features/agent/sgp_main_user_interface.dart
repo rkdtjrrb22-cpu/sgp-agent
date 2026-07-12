@@ -32,11 +32,28 @@ class SgpBluetoothStatusBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final radioActive = sttEngine.bluetoothScoActive || sttEngine.usbAudioDetected;
     final listening = sttState == SttSessionState.listening;
+    final whisperReady = sttEngine.whisperBound;
     final color = listening
         ? SgpFieldColors.accentBlue
-        : radioActive
-            ? SgpFieldColors.safeGreen
-            : SgpFieldColors.cautionOrange;
+        : whisperReady
+            ? SgpFieldColors.navy
+            : radioActive
+                ? SgpFieldColors.safeGreen
+                : SgpFieldColors.cautionOrange;
+
+    final headline = listening
+        ? '🎙 STT 수신 중 — ${sttEngine.activeInputLabel}'
+        : whisperReady
+            ? '🧠 Whisper 온디바이스 · ${sttEngine.activeInputLabel}'
+            : radioActive
+                ? '📡 Bluetooth/USB 무전 연동 · ${sttEngine.activeInputLabel}'
+                : '📡 무전 오디오 대기 — SCO/USB 연결 확인';
+
+    final whisperHint = sttEngine.whisperModelReady && !sttEngine.whisperNativeLoaded
+        ? ' · JNI 로드 필요'
+        : sttEngine.whisperModelReady && !sttEngine.whisperBound
+            ? ' · 모델 배치됨'
+            : '';
 
     return Container(
       width: double.infinity,
@@ -49,7 +66,13 @@ class SgpBluetoothStatusBar extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            radioActive ? Icons.bluetooth_connected : Icons.bluetooth_searching,
+            listening
+                ? Icons.mic
+                : whisperReady
+                    ? Icons.memory
+                    : radioActive
+                        ? Icons.bluetooth_connected
+                        : Icons.bluetooth_searching,
             color: color,
             size: 20,
           ),
@@ -59,9 +82,7 @@ class SgpBluetoothStatusBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  radioActive
-                      ? '📡 Bluetooth 무전기 연동 활성화 완료'
-                      : '📡 무전 오디오 대기 — 블루투스 SCO/USB 연결 확인',
+                  headline,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -69,7 +90,7 @@ class SgpBluetoothStatusBar extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  sttEngine.inputSourceLabel,
+                  '${sttEngine.inputSourceLabel}$whisperHint',
                   style: const TextStyle(fontSize: 10, color: SgpFieldColors.textSecondary),
                 ),
               ],
@@ -82,6 +103,78 @@ class SgpBluetoothStatusBar extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// S8 — 음성 인식 중 상단 인디케이터 ("현장 음성 분석 중…" 펄스 애니메이션).
+class SgpSttAnalyzingBanner extends StatefulWidget {
+  const SgpSttAnalyzingBanner({super.key});
+
+  @override
+  State<SgpSttAnalyzingBanner> createState() => _SgpSttAnalyzingBannerState();
+}
+
+class _SgpSttAnalyzingBannerState extends State<SgpSttAnalyzingBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final pulse = 0.45 + 0.55 * _controller.value;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: SgpFieldColors.accentBlue.withValues(alpha: 0.10 + 0.08 * _controller.value),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: SgpFieldColors.accentBlue.withValues(alpha: pulse),
+              width: 1.4,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.graphic_eq,
+                size: 20,
+                color: SgpFieldColors.accentBlue.withValues(alpha: pulse),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '현장 음성 분석 중…',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: SgpFieldColors.accentBlue.withValues(alpha: 0.7 + 0.3 * _controller.value),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: SgpFieldColors.accentBlue.withValues(alpha: pulse),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
