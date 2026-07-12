@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import 'sgp_agent_core.dart';
 import 'sgp_physical_force_guide.dart';
+import 'sgp_constitutional_force_engine.dart';
 import 'sgp_app_theme.dart';
 
 // ---------------------------------------------------------------------------
@@ -622,6 +623,7 @@ class SgpTimelineWidget extends StatefulWidget {
     this.maxHeight = 320,
     this.physicalThreatLevel,
     this.onThreatLevelChanged,
+    this.forceAssessment,
     this.onStartEvidenceNotice,
     this.onGenerateReport,
   });
@@ -632,6 +634,7 @@ class SgpTimelineWidget extends StatefulWidget {
   final double maxHeight;
   final PhysicalThreatLevel? physicalThreatLevel;
   final ValueChanged<PhysicalThreatLevel>? onThreatLevelChanged;
+  final ConstitutionalForceAssessment? forceAssessment;
   final Future<void> Function()? onStartEvidenceNotice;
   final Future<void> Function()? onGenerateReport;
 
@@ -700,6 +703,7 @@ class _SgpTimelineWidgetState extends State<SgpTimelineWidget> {
                   onCheckChanged: widget.onCheckChanged,
                   physicalThreatLevel: widget.physicalThreatLevel,
                   onThreatLevelChanged: widget.onThreatLevelChanged,
+                  forceAssessment: widget.forceAssessment,
                   onStartEvidenceNotice: widget.onStartEvidenceNotice,
                   onGenerateReport: widget.onGenerateReport,
                 );
@@ -765,6 +769,7 @@ class _TimelineNodeTile extends StatelessWidget {
     required this.onCheckChanged,
     this.physicalThreatLevel,
     this.onThreatLevelChanged,
+    this.forceAssessment,
     this.onStartEvidenceNotice,
     this.onGenerateReport,
   });
@@ -775,6 +780,7 @@ class _TimelineNodeTile extends StatelessWidget {
   final void Function(String nodeId, String checkId, bool value) onCheckChanged;
   final PhysicalThreatLevel? physicalThreatLevel;
   final ValueChanged<PhysicalThreatLevel>? onThreatLevelChanged;
+  final ConstitutionalForceAssessment? forceAssessment;
   final Future<void> Function()? onStartEvidenceNotice;
   final Future<void> Function()? onGenerateReport;
 
@@ -905,6 +911,7 @@ class _TimelineNodeTile extends StatelessWidget {
                           onCheckChanged(node.id, 'threat_assessed', true);
                         },
                         compact: true,
+                        assessment: forceAssessment,
                       ),
                     ],
                     if (node.id == 'evidence_notice' && onStartEvidenceNotice != null) ...[

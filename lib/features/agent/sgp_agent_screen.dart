@@ -14,6 +14,9 @@ import 'sgp_advanced_analysis_widget.dart';
 import 'sgp_readable_layout.dart';
 import 'sgp_procedure_timeline.dart';
 import 'sgp_evidence_notice.dart';
+import 'sgp_constitutional_force_engine.dart';
+import 'sgp_constitutional_force_indicator.dart';
+import 'sgp_demo_force_scenarios.dart';
 import 'sgp_physical_force_guide.dart';
 import 'sgp_procedural_safeguard_dialog.dart';
 import 'sgp_report_dialog.dart';
@@ -81,6 +84,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   String? _otaStatus;
   String? _hierarchyOtaStatus;
   VoiceLegalMatchResult _voiceLegalMatch = VoiceLegalMatchResult.empty;
+  ConstitutionalForceAssessment? _forceAssessment;
+  PoliceForceTier? _selectedForceTier;
+  bool _forceFlashExcessive = false;
+  bool _forceAlertShownForCurrentExcess = false;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -260,6 +267,122 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       _voiceLegalMatch = voice;
     });
     _refreshQuantumAnalysis();
+    _refreshForceAssessment();
+  }
+
+  void _refreshForceAssessment() {
+    final text = _rawTextController.text.trim();
+    if (text.isEmpty && _procedureTimeline?.physicalThreatLevel == null) {
+      if (_forceAssessment != null && mounted) {
+        setState(() {
+          _forceAssessment = null;
+          _forceFlashExcessive = false;
+        });
+      }
+      return;
+    }
+
+    final resistance = _resolveResistanceStage(text);
+    final detectedForce = SgpConstitutionalForceEngine.detectForceTierFromText(text);
+    final forceTier = _selectedForceTier ??
+        detectedForce ??
+        resistance.defaultForceTier;
+
+    final assessment = SgpConstitutionalForceEngine.assessWithOntology(
+      resistanceStage: resistance,
+      forceTier: forceTier,
+    );
+
+    final excessive = assessment.isExcessive;
+    if (mounted) {
+      setState(() {
+        _forceAssessment = assessment;
+        _forceFlashExcessive = excessive;
+      });
+    }
+
+    if (excessive && !_forceAlertShownForCurrentExcess && mounted) {
+      _forceAlertShownForCurrentExcess = true;
+      unawaited(showConstitutionalForceAlertDialog(context, assessment: assessment));
+    }
+    if (!excessive) {
+      _forceAlertShownForCurrentExcess = false;
+    }
+  }
+
+  ResistanceStage _resolveResistanceStage(String text) {
+    if (_procedureTimeline?.physicalThreatLevel != null) {
+      return _procedureTimeline!.physicalThreatLevel!.resistanceStage;
+    }
+    return SgpConstitutionalForceEngine.detectResistanceFromText(text) ??
+        ResistanceStage.compliance;
+  }
+
+  void _onForceTierChanged(PoliceForceTier tier) {
+    setState(() => _selectedForceTier = tier);
+    _refreshForceAssessment();
+  }
+
+  Future<void> _showForceScenarioPicker() async {
+    try {
+      final pack = await SgpDemoForceScenarioLoader.load();
+      if (!mounted) return;
+      final picked = await showModalBottomSheet<SgpDemoForceScenario>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  pack.title,
+                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ),
+              ...pack.scenarios.map(
+                (s) => ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: s.expectedExcessive
+                        ? SgpAppTheme.error.withValues(alpha: 0.15)
+                        : SgpAppTheme.primary.withValues(alpha: 0.15),
+                    child: Text('${s.stage}'),
+                  ),
+                  title: Text(s.resistanceLabel),
+                  subtitle: Text(
+                    s.radioText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  onTap: () => Navigator.pop(ctx, s),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      _rawTextController.text = picked.radioText;
+      _selectedForceTier = null;
+      _forceAlertShownForCurrentExcess = false;
+      _applyRuleMapping();
+      _refreshForceAssessment();
+      final a = _forceAssessment;
+      if (a != null) {
+        final ok = a.isExcessive == picked.expectedExcessive;
+        _showSnack(
+          ok
+              ? '물리력 시연 ${picked.stage}단계 로드 — IsExcessive=${a.isExcessive}'
+              : '시연 검증 주의: IsExcessive 기대 ${picked.expectedExcessive}, 실제 ${a.isExcessive}',
+        );
+      }
+    } catch (e) {
+      if (mounted) _showSnack('물리력 시연 로드 실패: $e');
+    }
   }
 
   Future<void> _pasteFromClipboard() async {
@@ -542,7 +665,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     if (_procedureTimeline == null) return;
     setState(() {
       _procedureTimeline = _procedureTimeline!.copyWith(physicalThreatLevel: level);
+      _selectedForceTier = null;
+      _forceAlertShownForCurrentExcess = false;
     });
+    _refreshForceAssessment();
   }
 
   Future<void> _onStartEvidenceNotice() async {
@@ -964,6 +1090,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
         title: const Text('SGP-Agent'),
         actions: [
           IconButton(
+            tooltip: '5단계 물리력 시연 프리셋',
+            icon: const Icon(Icons.shield_outlined),
+            onPressed: _showForceScenarioPicker,
+          ),
+          IconButton(
             tooltip: '현장 시연 시나리오 (Mock)',
             icon: const Icon(Icons.play_circle_outline),
             onPressed: _loadFieldDemoScenario,
@@ -1008,6 +1139,13 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                       _otaStatus,
                       _hierarchyOtaStatus,
                     ].whereType<String>().join(' · '),
+                  ),
+                  const SizedBox(height: 12),
+                  SgpConstitutionalForceIndicator(
+                    assessment: _forceAssessment,
+                    selectedForceTier: _selectedForceTier,
+                    onForceTierChanged: _onForceTierChanged,
+                    flashExcessive: _forceFlashExcessive,
                   ),
                   const SizedBox(height: 12),
                   _buildSttField(),
@@ -1061,6 +1199,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                 maxHeight: 340,
                 physicalThreatLevel: _procedureTimeline!.physicalThreatLevel,
                 onThreatLevelChanged: _onThreatLevelChanged,
+                forceAssessment: _forceAssessment,
                 onStartEvidenceNotice: _onStartEvidenceNotice,
                 onGenerateReport: _onGenerateLegalReport,
               ),

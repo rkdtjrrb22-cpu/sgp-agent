@@ -7,7 +7,8 @@
     "scope": { "country": "KR" },
     "filter_keys": ["global_default"],
     "domain_tags": ["all"],
-    "summary": "모든 국가법·지방자치법·조직 규정의 최상위 전제"
+    "articles": ["제37조", "제37조의2"],
+    "summary": "모든 국가법·지방자치법·조직 규정의 최상위 전제 — 과잉금지·비례의 원칙"
   },
   {
     "id": "KR-LAW-CRIMINAL",
@@ -105,8 +106,8 @@
     "scope": { "country": "KR" },
     "filter_keys": ["domain_tag:police_duty"],
     "domain_tags": ["criminal", "procedure", "evidence"],
-    "articles": ["제10조의2"],
-    "summary": "현장 채증·영상녹화 고지"
+    "articles": ["제8조", "제10조", "제10조의2"],
+    "summary": "현장 물리력·비례원칙·채증·영상녹화 고지"
   },
   {
     "id": "KR-DECREE-CRIM-PROC",
@@ -289,5 +290,72 @@
     "filter_keys": ["local_gov_code:26"],
     "domain_tags": ["criminal", "administrative"],
     "summary": "부산시 경범죄 — 서울과 별도 필터"
+  },
+  {
+    "id": "MANUAL-SGP-FORCE-MATRIX",
+    "level": 8,
+    "title": "경찰 5단계 물리력 통제 매트릭스 (S7-A)",
+    "parent_id": "KR-RULE-POLICE-EXEC",
+    "scope": { "org_id": "KR-NPA", "task_category": "field_arrest" },
+    "filter_keys": ["task_category:field_arrest", "domain_tag:physical_force"],
+    "domain_tags": ["criminal", "procedure", "physical_force"],
+    "conflict_check": true,
+    "linked_articles": [
+      { "upper_node_id": "KR-CONST-001", "article": "제37조", "note": "과잉금지·비례의 원칙" },
+      { "upper_node_id": "KR-LAW-POLICE-DUTY", "article": "제8조", "note": "최소침해·정당한 물리력" },
+      { "upper_node_id": "KR-LAW-POLICE-DUTY", "article": "제10조", "note": "정당한 물리력 행사" }
+    ],
+    "source": "sgp_force_matrix_s7a.md",
+    "summary": "헌법 제37조 기반 5단계 저항·물리력 비례성 매트릭스"
+  },
+  {
+    "id": "PF-STAGE-1",
+    "level": 8,
+    "title": "1단계: 순응·협조 — 언어적 통제",
+    "parent_id": "MANUAL-SGP-FORCE-MATRIX",
+    "domain_tags": ["physical_force", "stage_1"],
+    "linked_articles": [
+      { "upper_node_id": "KR-CONST-001", "article": "제37조", "note": "최소침해성" }
+    ],
+    "summary": "저항 1단계 — 언어적 통제만 허용"
+  },
+  {
+    "id": "PF-STAGE-2",
+    "level": 8,
+    "title": "2단계: 소극적 저항 — 접촉성 통제",
+    "parent_id": "MANUAL-SGP-FORCE-MATRIX",
+    "domain_tags": ["physical_force", "stage_2"],
+    "linked_articles": [
+      { "upper_node_id": "KR-LAW-POLICE-DUTY", "article": "제8조", "note": "접촉성 통제" }
+    ],
+    "summary": "저항 2단계 — 유도·구속, 테이저 등 4단계 이상 금지"
+  },
+  {
+    "id": "PF-STAGE-3",
+    "level": 8,
+    "title": "3단계: 적극적 저항 — 저위험 물리력",
+    "parent_id": "MANUAL-SGP-FORCE-MATRIX",
+    "domain_tags": ["physical_force", "stage_3"],
+    "summary": "관절·분사기 — 적합성·상당성 검토"
+  },
+  {
+    "id": "PF-STAGE-4",
+    "level": 8,
+    "title": "4단계: 폭력적 저항 — 중위험 물리력",
+    "parent_id": "MANUAL-SGP-FORCE-MATRIX",
+    "domain_tags": ["physical_force", "stage_4"],
+    "summary": "경찰봉·전자충격기 — 신체 위험성 분석"
+  },
+  {
+    "id": "PF-STAGE-5",
+    "level": 8,
+    "title": "5단계: 치명적 저항 — 고위험 물리력",
+    "parent_id": "MANUAL-SGP-FORCE-MATRIX",
+    "domain_tags": ["physical_force", "stage_5"],
+    "linked_articles": [
+      { "upper_node_id": "KR-CONST-001", "article": "제37조", "note": "최후 수단성" },
+      { "upper_node_id": "KR-LAW-CRIMINAL", "article": "제21조", "note": "정당방위" }
+    ],
+    "summary": "권총 등 — 헌법 제37조 제2항 최후 수단"
   }
 ]

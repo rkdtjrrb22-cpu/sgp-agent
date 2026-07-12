@@ -128,3 +128,6 @@ SELECT
 FROM legal_nodes n
 WHERE array_length(n.domain_tags, 1) > 0
 ON CONFLICT (subject_id, predicate, object_id, object_value) DO NOTHING;
+
+-- 8) S7-A — 5단계 물리력 매트릭스 (MANUAL-SGP-FORCE-MATRIX, PF-STAGE-1..5)
+--    assets/data/legal_hierarchy_seed.json 과 동기화. Cron 산출물 UPSERT 권장.

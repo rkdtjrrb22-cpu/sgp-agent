@@ -1,0 +1,54 @@
+{
+  "version": "1.0",
+  "title": "S7-A 5단계 물리력 시연 프리셋",
+  "scenarios": [
+    {
+      "id": "force_stage_1_compliance",
+      "stage": 1,
+      "resistance_label": "순응·협조",
+      "radio_text": "14:05 현장 도착. 피의자 신분 확인 협조. 지시에 순응·저항 없음. 언어적 통제로 신분 확인 완료.",
+      "expected_force_tier": 1,
+      "expected_excessive": false
+    },
+    {
+      "id": "force_stage_2_passive",
+      "stage": 2,
+      "resistance_label": "소극적 저항",
+      "radio_text": "14:12 피의자 소극적 저항. 손을 뒤로 숨기고 몸을 돌림. 말로만 거부. 접촉성 통제·유도 필요.",
+      "expected_force_tier": 2,
+      "expected_excessive": false
+    },
+    {
+      "id": "force_stage_2_taser_excess",
+      "stage": 2,
+      "resistance_label": "소극적 저항 + 과잉 시도",
+      "radio_text": "14:18 피의자 소극적 저항 지속. 손을 뒤로 숨김. 【조치】 전자충격기 발사 검토 — 테이저 사용 요청.",
+      "expected_force_tier": 4,
+      "expected_excessive": true
+    },
+    {
+      "id": "force_stage_3_active",
+      "stage": 3,
+      "resistance_label": "적극적 저항",
+      "radio_text": "14:25 피의자 적극적 저항. 밀침·발로 차기·도주 시도. 관절 조작·OC 분사기 저위험 물리력 검토.",
+      "expected_force_tier": 3,
+      "expected_excessive": false
+    },
+    {
+      "id": "force_stage_4_violent",
+      "stage": 4,
+      "resistance_label": "폭력적 저항",
+      "radio_text": "14:31 폭력적 저항. 경찰관 공격·흉기 위협. 경찰봉·테이저건 중위험 물리력 대응. 미란다 고지 준비.",
+      "expected_force_tier": 4,
+      "expected_excessive": false
+    },
+    {
+      "id": "force_stage_5_lethal",
+      "stage": 5,
+      "resistance_label": "치명적 저항",
+      "radio_text": "14:38 치명적 저항. 흉기·총기 위협. 생명 위협. 권총 사용 최후 수단 검토 — 112·상급자 보고.",
+      "expected_force_tier": 5,
+      "expected_excessive": false
+    }
+  ]
+}
