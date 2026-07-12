@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import 'sgp_agent_core.dart';
 import 'sgp_app_theme.dart';
+import 'panels/sgp_kgrag_reasoning_panel.dart';
+import 'sgp_kgrag_router.dart';
 List<String> splitReadableSentences(String text) {
   final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (normalized.isEmpty) return [];
@@ -427,11 +429,15 @@ class ProAnalysisStepView extends StatelessWidget {
     required this.analysis,
     this.onProceduralTap,
     this.compact = false,
+    this.kgragReasoning,
+    this.kgragLoading = false,
   });
 
   final SgpAdvancedAnalysis analysis;
   final VoidCallback? onProceduralTap;
   final bool compact;
+  final KgragReasoningResult? kgragReasoning;
+  final bool kgragLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -489,6 +495,15 @@ class ProAnalysisStepView extends StatelessWidget {
               icon: Icons.warning_amber_rounded,
               backgroundColor: Colors.amber.shade100,
               sentenceColor: Colors.black,
+            ),
+          ],
+          if (analysis.mutualCombatSuspected ||
+              kgragReasoning != null ||
+              kgragLoading) ...[
+            const SizedBox(height: 10),
+            SgpKgragReasoningPanel(
+              result: kgragReasoning,
+              loading: kgragLoading,
             ),
           ],
           const SizedBox(height: 12),
@@ -913,10 +928,14 @@ class AdvancedAnalysisWidget extends StatelessWidget {
     super.key,
     required this.analysis,
     this.onProceduralTap,
+    this.kgragReasoning,
+    this.kgragLoading = false,
   });
 
   final SgpAdvancedAnalysis analysis;
   final VoidCallback? onProceduralTap;
+  final KgragReasoningResult? kgragReasoning;
+  final bool kgragLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -929,6 +948,8 @@ class AdvancedAnalysisWidget extends StatelessWidget {
       child: ProAnalysisStepView(
         analysis: analysis,
         onProceduralTap: onProceduralTap,
+        kgragReasoning: kgragReasoning,
+        kgragLoading: kgragLoading,
       ),
     );
   }

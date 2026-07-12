@@ -35,6 +35,8 @@ import 'sgp_civil_complaint_guide.dart';
 import 'sgp_medical_custody_engine.dart';
 import 'panels/sgp_medical_transfer_guide_panel.dart';
 import 'sgp_civil_complaint_data.dart';
+import 'sgp_kgrag_assets.dart';
+import 'sgp_kgrag_router.dart';
 import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
@@ -105,6 +107,9 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   SgpMedicalTransferSession? _medicalTransferSession;
   MedicalCustodyDeadline? _medicalTransferDeadline;
   bool _medicalTransferDismissed = false;
+  KgragReasoningResult? _kgragResult;
+  bool _kgragLoading = false;
+  bool _kgragIndexReady = false;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -184,6 +189,12 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       _civilComplaintPack = pack;
     } catch (_) {
       SgpLegalOntologySession.instance.loadFromRegistry();
+    }
+    try {
+      await SgpKgragAssetLoader.loadFromAssets();
+      _kgragIndexReady = true;
+    } catch (_) {
+      _kgragIndexReady = false;
     }
     if (!mounted) return;
     final ota = SgpLegalHierarchyOta.instance.lastRefreshStatus;
@@ -314,7 +325,40 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _refreshForceAssessment();
     _refreshCivilComplaintRoute();
     _refreshMedicalTransferRoute();
+    _refreshKgragReasoning();
   }
+
+  void _refreshKgragReasoning() {
+    if (!_kgragIndexReady) return;
+    final text = _rawTextController.text.trim();
+    if (text.isEmpty) {
+      if (_kgragResult != null || _kgragLoading) {
+        if (mounted) {
+          setState(() {
+            _kgragResult = null;
+            _kgragLoading = false;
+          });
+        }
+      }
+      return;
+    }
+
+    if (!_kgragLoading && mounted) {
+      setState(() => _kgragLoading = true);
+    }
+
+    final graph = SgpLegalOntologySession.instance.graph;
+    final result = SgpKgragRouter.reasonFromText(
+      text,
+      complaintPack: _civilComplaintPack,
+      graph: graph,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _kgragResult = result;
+      _kgragLoading = false;
+    });
 
   void _refreshMedicalTransferRoute() {
     final pack = _civilComplaintPack;
@@ -997,6 +1041,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       timeline: _procedureTimeline,
       quantumComparison: _quantumComparison,
       medicalTransferSession: _medicalTransferSession,
+      kgragReasoning: _kgragResult,
     );
     final report = SgpReportGenerator.generate(input);
     await showLegalReportDialog(context, report: report);
@@ -1542,6 +1587,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
               AdvancedAnalysisWidget(
                 analysis: _advancedAnalysis!,
                 onProceduralTap: () => _showProceduralAlert(_advancedAnalysis!),
+                kgragReasoning: _kgragResult,
+                kgragLoading: _kgragLoading,
               ),
             ],
             const SizedBox(height: 16),

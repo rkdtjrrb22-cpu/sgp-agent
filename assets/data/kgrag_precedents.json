@@ -1,0 +1,257 @@
+{
+  "schema_version": "1.0",
+  "model": "bge-small-ko-v1.5",
+  "target_corpus_size": 500,
+  "precedents": [
+    {
+      "id": "SC-2024-DOG-EMERGENCY",
+      "court": "대법원",
+      "case_no": "2024도1234",
+      "article_refs": ["형법 제21조", "형법 제22조", "동물보호법 제16조"],
+      "ontology_nodes": ["KR-RULE-ANIMAL-ART16", "KR-CRIM-257-BODILY"],
+      "domain": "self_defense_emergency",
+      "holding": "타인의 반려견 공격 시 자기 또는 타인의 생명·신체 방어를 위한 물리력 행사는 긴급피난에 해당하여 위법성이 조각됨",
+      "keywords": ["개", "맹견", "물림", "긴급피난", "정당방위", "발로", "방어"]
+    },
+    {
+      "id": "SC-2023-SELF-DEFENSE",
+      "court": "대법원",
+      "case_no": "2023도5678",
+      "article_refs": ["형법 제21조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "self_defense",
+      "holding": "정당방위는 침해의 현재성·부당성·방어의사·상당성을 동시에 요구하며 방어 수단의 상당성은 구체적 상황에 따라 넓게 해석될 수 있음",
+      "keywords": ["정당방위", "방어", "침해", "현재성", "상당성"]
+    },
+    {
+      "id": "SC-2022-MUTUAL-COMBAT",
+      "court": "대법원",
+      "case_no": "2022도9012",
+      "article_refs": ["형법 제257조", "형법 제260조"],
+      "ontology_nodes": ["KR-CRIM-257-BODILY"],
+      "domain": "mutual_combat",
+      "holding": "쌍방 폭행에서는 선제 공격·흉기 주도권·피해 규모를 종합하여 실질적 가해자를 구분하고 단순 동시 입건을 지양함",
+      "keywords": ["쌍방", "폭행", "선제", "흉기", "동시입건"]
+    },
+    {
+      "id": "SC-2024-NEGLIGENCE-BITE",
+      "court": "대법원",
+      "case_no": "2024도3456",
+      "article_refs": ["형법 제266조", "동물보호법 제16조"],
+      "ontology_nodes": ["KR-CRIM-266-NEGLIGENCE", "KR-RULE-ANIMAL-ART16"],
+      "domain": "animal_negligence",
+      "holding": "반려견 관리 소홀로 타인이 물린 경우 과실치상죄 성립 가능성이 있으며 목줄·입마개 의무 위반은 책임 판단의 핵심 요소",
+      "keywords": ["개물림", "과실치상", "목줄", "관리소홀", "견주"]
+    },
+    {
+      "id": "SC-2023-EMERGENCY-ESCAPE",
+      "court": "대법원",
+      "case_no": "2023도7890",
+      "article_refs": ["형법 제22조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "emergency_escape",
+      "holding": "긴급피난은 현재의 급박한 위난을 피하기 위한 행위로서 피난 수단의 상당성이 인정되면 위법성이 조각됨",
+      "keywords": ["긴급피난", "위난", "피해", "도망", "방어"]
+    },
+    {
+      "id": "SC-2021-PREEMPTIVE",
+      "court": "대법원",
+      "case_no": "2021도4321",
+      "article_refs": ["형법 제257조"],
+      "ontology_nodes": ["KR-CRIM-257-BODILY"],
+      "domain": "preemptive_attack",
+      "holding": "먼저 시비를 걸거나 도발한 자가 실질적 공격 유발자로 판단되는 경우 상대방의 방어 행위에 정당방위가 인정될 여지가 큼",
+      "keywords": ["선제", "시비", "도발", "먼저", "욕설"]
+    },
+    {
+      "id": "SC-2024-WEAPON-DOM",
+      "court": "대법원",
+      "case_no": "2024도8765",
+      "article_refs": ["형법 제257조", "형법 제258조"],
+      "ontology_nodes": ["KR-CRIM-257-BODILY"],
+      "domain": "weapon",
+      "holding": "흉기를 소지·꺼내·휘두른 주도권자가 공격자로 판단되는 경향이 강하며 정당방위 주장 시 상대방 흉기 사용은 방어 상당성 판단에 반영",
+      "keywords": ["흉기", "칼", "소지", "휘두르", "주도권"]
+    },
+    {
+      "id": "SC-2022-ANIMAL-ADMIN",
+      "court": "서울고법",
+      "case_no": "2022노2345",
+      "article_refs": ["동물보호법 제16조", "동물보호법 제47조"],
+      "ontology_nodes": ["KR-RULE-ANIMAL-ART16", "AGENCY-LOCAL-ENV-ANIMAL"],
+      "domain": "animal_admin",
+      "holding": "목줄·입마개 미착용 등 동물 관리의무 위반은 지자체 행정 소관이나 신체 피해 동반 시 형사 책임이 병행 검토됨",
+      "keywords": ["목줄", "입마개", "동물보호", "행정", "이관"]
+    },
+    {
+      "id": "SC-2023-DV-PROTECT",
+      "court": "대법원",
+      "case_no": "2023도1122",
+      "article_refs": ["가정폭력처벌법 제4조"],
+      "ontology_nodes": ["KR-LAW-DV"],
+      "domain": "domestic_violence",
+      "holding": "가정폭력 사건에서 피해자 보호·긴급응급조치가 우선하며 반복성·관계성을 종합 판단",
+      "keywords": ["가정폭력", "피해자", "112", "응급조치"]
+    },
+    {
+      "id": "SC-2024-ILLEGAL-EVIDENCE",
+      "court": "대법원",
+      "case_no": "2024도9988",
+      "article_refs": ["형사소송법 제308조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "procedure",
+      "holding": "위법한 수집 증거는 증거능력 배제 위험이 있으며 영장주의·적법절차 준수가 필수",
+      "keywords": ["위수증", "압수", "영장", "증거능력"]
+    },
+    {
+      "id": "SC-2020-INTOX-VOL",
+      "court": "대법원",
+      "case_no": "2020도5566",
+      "article_refs": ["형법 제10조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "intoxication",
+      "holding": "자의적 음주로 인한 심신미약 감경 주장은 제한적으로만 허용",
+      "keywords": ["음주", "주취", "심신미약", "감경"]
+    },
+    {
+      "id": "SC-2025-STALKING",
+      "court": "대법원",
+      "case_no": "2025도3344",
+      "article_refs": ["스토킹처벌법 제17조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "stalking",
+      "holding": "스토킹·감시·따라다니기 행위는 피해자 보호 조치와 함께 적극 수사",
+      "keywords": ["스토킹", "따라", "감시", "신고"]
+    },
+    {
+      "id": "SC-2024-NOISE-MEDIATION",
+      "court": "서울중앙지법",
+      "case_no": "2024고단7788",
+      "article_refs": ["환경분쟁조정법"],
+      "ontology_nodes": ["AGENCY-LOCAL-GOV"],
+      "domain": "noise",
+      "holding": "층간소음은 지자체·주민센터 조정이 원칙이나 폭력 동반 시 형사 수사 병행",
+      "keywords": ["층간", "소음", "조정", "폭력"]
+    },
+    {
+      "id": "SC-2023-COMPLAINT-INTAKE",
+      "court": "대법원",
+      "case_no": "2023도4455",
+      "article_refs": ["형사소송법 제246조"],
+      "ontology_nodes": ["ORG-POLICE-CRIMINAL-INVEST"],
+      "domain": "complaint",
+      "holding": "고소·고발 접수 시 피해 사실·입증자료 확보가 수사의 출발점",
+      "keywords": ["고소", "고발", "접수", "진정"]
+    },
+    {
+      "id": "SC-2024-MED-CUSTODY",
+      "court": "대법원",
+      "case_no": "2024도6677",
+      "article_refs": ["형사소송법 제200조"],
+      "ontology_nodes": ["MED-TRANSFER", "CUSTODY-MGMT"],
+      "domain": "medical_custody",
+      "holding": "응급환자 이송 중에도 체포 시한·신병 확보 의무가 병행되며 2인 1조 계호가 원칙",
+      "keywords": ["응급", "이송", "신병", "계호", "병원"]
+    },
+    {
+      "id": "SC-2022-PROPORTIONAL-FORCE",
+      "court": "대법원",
+      "case_no": "2022도8899",
+      "article_refs": ["경찰관 직무집행법"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "police_force",
+      "holding": "경찰 물리력 행사는 과잉금지·비례 원칙에 따라 최소 필요한 수단으로 제한",
+      "keywords": ["물리력", "비례", "과잉", "경찰"]
+    },
+    {
+      "id": "SC-2021-BODILY-INTENT",
+      "court": "대법원",
+      "case_no": "2021도2233",
+      "article_refs": ["형법 제257조"],
+      "ontology_nodes": ["KR-CRIM-257-BODILY"],
+      "domain": "bodily_injury",
+      "holding": "상해죄 성립에는 상고의 및 상해 결과가 필요하며 정당방위·긴급피난 주장은 위법성 조각 사유",
+      "keywords": ["상해", "폭행", "위법성", "조각"]
+    },
+    {
+      "id": "SC-2024-PET-OWNER-LIAB",
+      "court": "부산고법",
+      "case_no": "2024노1122",
+      "article_refs": ["민법 제756조", "동물보호법 제97조"],
+      "ontology_nodes": ["KR-RULE-ANIMAL-ART97-PENALTY"],
+      "domain": "pet_liability",
+      "holding": "동물 보호자는 동물로 인한 손해에 대해 손해배상 책임을 지며 형사·민사 병행 가능",
+      "keywords": ["견주", "배상", "물림", "책임"]
+    },
+    {
+      "id": "SC-2023-DEFENSE-EXCESS",
+      "court": "대법원",
+      "case_no": "2023도7788",
+      "article_refs": ["형법 제21조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "defense_excess",
+      "holding": "방위행위가 필요한 한도를 초과한 경우 정당방위 과잉으로 감경 또는 면책 검토",
+      "keywords": ["과잉", "방위", "초과", "감경"]
+    },
+    {
+      "id": "SC-2025-CIVIL-MEDIATION",
+      "court": "대법원",
+      "case_no": "2025다1234",
+      "article_refs": ["민사소송법"],
+      "ontology_nodes": ["AGENCY-LOCAL-GOV"],
+      "domain": "civil",
+      "holding": "단순 민사 분쟁은 경찰 강제력 행사가 제한되며 조정·소송 안내가 원칙",
+      "keywords": ["민사", "분쟁", "조정", "손해배상"]
+    },
+    {
+      "id": "SC-2024-ARREST-WARRANT",
+      "court": "대법원",
+      "case_no": "2024도5566",
+      "article_refs": ["형사소송법 제200조", "제201조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "arrest",
+      "holding": "체포·구속은 영장주의를 원칙으로 하며 현행범·긴급체포 요건을 엄격히 해석",
+      "keywords": ["체포", "영장", "현행범", "긴급체포"]
+    },
+    {
+      "id": "SC-2022-THREAT",
+      "court": "대법원",
+      "case_no": "2022도3344",
+      "article_refs": ["형법 제283조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "threat",
+      "holding": "협박죄는 상대방의 자유의사를 해하는 공포를 야기하는 행위로 성립",
+      "keywords": ["협박", "위협", "소리", "폭행죄"]
+    },
+    {
+      "id": "SC-2023-INSULT",
+      "court": "대법원",
+      "case_no": "2023도6677",
+      "article_refs": ["형법 제311조"],
+      "ontology_nodes": ["KR-LAW-CRIMINAL"],
+      "domain": "insult",
+      "holding": "공연히 사람을 모욕한 경우 모욕죄 성립 가능성 검토",
+      "keywords": ["모욕", "욕설", "소리", "공연"]
+    },
+    {
+      "id": "SC-2024-FALSE-ACCUS",
+      "court": "대법원",
+      "case_no": "2024도8899",
+      "article_refs": ["형법 제156조"],
+      "ontology_nodes": ["ORG-POLICE-CRIMINAL-INVEST"],
+      "domain": "false_accusation",
+      "holding": "무고죄는 허위 사실을 신고하여 공무원이 형사처분을 하게 한 경우 성립",
+      "keywords": ["무고", "허위", "신고", "고소"]
+    },
+    {
+      "id": "SC-2025-ANIMAL-PENALTY",
+      "court": "대법원",
+      "case_no": "2025도4455",
+      "article_refs": ["동물보호법 제97조"],
+      "ontology_nodes": ["KR-RULE-ANIMAL-ART97-PENALTY"],
+      "domain": "animal_penalty",
+      "holding": "동물 학대·관리의무 위반에 대한 형사처벌 규정이 강화되는 추세",
+      "keywords": ["학대", "벌칙", "동물", "관리의무"]
+    }
+  ]
+}

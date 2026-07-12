@@ -9,6 +9,7 @@ import 'sgp_procedure_timeline.dart';
 import 'sgp_quantum_legal_engine.dart';
 import 'sgp_official_document_drafts.dart';
 import 'sgp_medical_custody_engine.dart';
+import 'sgp_kgrag_router.dart';
 
 /// 보고서 생성에 필요한 현장 세션 데이터.
 class SgpReportInput {
@@ -20,6 +21,7 @@ class SgpReportInput {
     this.timeline,
     this.quantumComparison,
     this.medicalTransferSession,
+    this.kgragReasoning,
   });
 
   final String rawText;
@@ -29,6 +31,7 @@ class SgpReportInput {
   final SgpProcedureTimeline? timeline;
   final SgpQuantumLegalComparison? quantumComparison;
   final SgpMedicalTransferSession? medicalTransferSession;
+  final KgragReasoningResult? kgragReasoning;
 
   /// 저장 기록·파이프라인 JSON에서 복원.
   factory SgpReportInput.fromSessionJson(Map<String, dynamic> json) {
@@ -117,6 +120,10 @@ class SgpReportGenerator {
     if (input.advancedAnalysis != null) {
       _section(buf, '6. 법리 분석 (SGP-Agent Pro)',
           _buildLegalAnalysis(input, precedents, inlineCited));
+    }
+    if (input.kgragReasoning != null) {
+      _section(buf, '6-A. KG-RAG 하이브리드 추론',
+          _buildKgragSection(input.kgragReasoning!));
     }
     final remaining =
         precedents.where((p) => !inlineCited.contains(p.id)).toList();
@@ -421,6 +428,49 @@ class SgpReportGenerator {
         lines.add('  - $r');
       }
     }
+    return lines;
+  }
+
+  /// KG-RAG — 검찰/법원 제출용 고도 정제 수사 보고서 단락.
+  static List<String> _buildKgragSection(KgragReasoningResult kgrag) {
+    final lines = <String>[
+      '- **환각 방지 가드**: ${kgrag.hallucinationGuardPass ? "PASS (온톨로지·판례 교차 검증)" : "추가 확인 필요"}',
+      '- **정당방위·긴급피난 추정**: ${(kgrag.selfDefenseProbability * 100).round()}% (${kgrag.confidenceLabel})',
+      '- **현장 조치 지침**: ${kgrag.recommendedAction}',
+    ];
+
+    final branch = kgrag.ontologyShield.branchResult;
+    if (branch != null) {
+      lines.add(
+        '- **집행 분기**: ${branch.isCriminal ? "형사과 수사" : "지자체 행정 이관"} — ${branch.rationale}',
+      );
+    }
+
+    final med = kgrag.ontologyShield.complaintRoute?.type;
+    if (med != null && med.isMedicalTransferGuide) {
+      lines.add(
+        '- **의료 이송 분기**: ${med.medTransferBranch ?? "MED-TRANSFER"} · '
+        '신병확보(CUSTODY-MGMT) ${med.requiresGuard ? "2인 계호" : "행정 감독"}',
+      );
+    }
+
+    if (kgrag.precedentHits.isNotEmpty) {
+      lines.add('- **판례 핵심 요지 (벡터 매칭)**');
+      for (final h in kgrag.precedentHits.take(3)) {
+        lines.add(
+          '  - [${h.court} ${h.caseNo}] (유사도 ${(h.similarity * 100).round()}%) ${h.holding}',
+        );
+      }
+    }
+
+    if (kgrag.ontologyShield.legalNodeIds.isNotEmpty) {
+      lines.add(
+        '- **온톨로지 가이드레일 노드**: ${kgrag.ontologyShield.legalNodeIds.join(", ")}',
+      );
+    }
+
+    lines.add('');
+    lines.add('> ${kgrag.promptContext.split('\n').take(6).join('\n> ')}');
     return lines;
   }
 

@@ -74,6 +74,7 @@ flutter:
     - assets/data/demo_field_scenario.json
     - assets/data/demo_force_scenarios.json
     - assets/data/civil_complaint_nodes.json
+    - assets/data/kgrag_precedents.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
