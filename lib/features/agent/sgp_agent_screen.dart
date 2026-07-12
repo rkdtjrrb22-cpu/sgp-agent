@@ -557,7 +557,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => SgpCivilComplaintGuideScreen(route: route),
+        builder: (_) => SgpCivilComplaintGuideScreen(
+          route: route,
+          rawText: _rawTextController.text,
+        ),
       ),
     );
   }
@@ -1490,6 +1493,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                     const SizedBox(height: 12),
                     SgpCivilComplaintGuidePanel(
                       route: _civilComplaintRoute!,
+                      rawText: _rawTextController.text,
                       onDismiss: () => setState(() {
                         _civilComplaintRoute = null;
                         _civilComplaintDismissed = true;

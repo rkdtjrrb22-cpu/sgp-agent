@@ -1,10 +1,11 @@
-/// 위수증 방어 경고 — 단계별 절차 이행 UI.
+/// 위수증 방어 경고 — S9 고대비·글래스모피즘 절차 이행 UI.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'sgp_agent_core.dart';
 import 'sgp_app_theme.dart';
+import 'sgp_glass_skin.dart';
 
 /// 절차 경고를 실행 가능한 단계로 구조화.
 class ProceduralActionStep {
@@ -141,6 +142,9 @@ class _ProceduralSafeguardDialogState extends State<_ProceduralSafeguardDialog> 
   late final List<ProceduralActionStep> _steps;
   final Set<String> _completed = {};
 
+  static const _bodyBlack = SgpGlassSkinColors.realBlack;
+  static const _urgentRed = Color(0xFFD32F2F);
+
   @override
   void initState() {
     super.initState();
@@ -157,186 +161,251 @@ class _ProceduralSafeguardDialogState extends State<_ProceduralSafeguardDialog> 
   Widget build(BuildContext context) {
     final hasConsentUrgency = widget.alerts.any((a) => a.contains('임의제출'));
 
-    return AlertDialog(
-      icon: Icon(Icons.gpp_bad, color: Colors.red.shade700, size: 40),
-      title: const Text(
-        '위수증 방어 — 절차 이행 가이드',
-        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (hasConsentUrgency)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade400, width: 2),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: SgpGlassSkinCard(
+        accent: _urgentRed,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.gpp_bad, color: _urgentRed, size: 36),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    '위수증 방어 — 절차 이행 가이드',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: SgpCivilGuideColors.pureWhite,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.priority_high, color: Colors.red.shade800, size: 20),
-                          const SizedBox(width: 6),
-                          Text(
-                            '즉시 조치 필요',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red.shade900,
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: SgpCivilGuideColors.pureWhite),
+                ),
+              ],
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (hasConsentUrgency)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _urgentRed, width: 2),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.priority_high, color: _urgentRed, size: 22),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '즉시 조치 필요',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: _urgentRed,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '영장 없는 디지털 증거 확보 전 임의제출 동의서를 반드시 확보하십시오.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.red.shade900,
-                          height: 1.4,
+                            const SizedBox(height: 6),
+                            const Text(
+                              '영장 없는 디지털 증거 확보 전 임의제출 동의서를 반드시 확보하십시오.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: _bodyBlack,
+                                height: 1.45,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    const Text(
+                      '아래 단계를 순서대로 이행하고 각 항목을 체크하세요.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: SgpCivilGuideColors.pureWhite,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._steps.map(_buildStepCard),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: _steps.isEmpty ? 1 : _completed.length / _steps.length,
+                      backgroundColor: Colors.white24,
+                      color: _allCriticalDone ? SgpCivilGuideColors.emerald : _urgentRed,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_completed.length}/${_steps.length} 단계 완료',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: SgpCivilGuideColors.neonCyan,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    '나중에',
+                    style: TextStyle(
+                      color: SgpCivilGuideColors.pureWhite,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              Text(
-                '아래 단계를 순서대로 이행하고 각 항목을 체크하세요.',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: SgpFieldColors.fieldGuideBody,
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _allCriticalDone ? () => Navigator.pop(context) : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _urgentRed,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(
+                    _allCriticalDone ? '절차 이행 완료' : '필수 단계 미완료',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              ..._steps.map(_buildStepCard),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: _steps.isEmpty ? 1 : _completed.length / _steps.length,
-                backgroundColor: Colors.grey.shade200,
-                color: _allCriticalDone ? Colors.green.shade700 : Colors.orange.shade800,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${_completed.length}/${_steps.length} 단계 완료',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: SgpFieldColors.fieldGuideBody,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('나중에'),
-        ),
-        FilledButton(
-          onPressed: _allCriticalDone ? () => Navigator.pop(context) : null,
-          style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
-          child: Text(_allCriticalDone ? '절차 이행 완료' : '필수 단계 미완료'),
-        ),
-      ],
     );
   }
 
   Widget _buildStepCard(ProceduralActionStep step) {
     final done = _completed.contains(step.id);
     final color = switch (step.priority) {
-      0 => Colors.red.shade700,
-      1 => Colors.orange.shade800,
-      _ => Colors.blue.shade800,
+      0 => _urgentRed,
+      1 => const Color(0xFFE65100),
+      _ => SgpGlassSkinColors.neonBlue,
     };
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      elevation: done ? 0 : 1,
-      color: done ? Colors.green.shade50 : null,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CheckboxListTile(
-              value: done,
-              onChanged: (v) => setState(() {
-                if (v == true) {
-                  _completed.add(step.id);
-                } else {
-                  _completed.remove(step.id);
-                }
-              }),
-              title: Text(
-                step.title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: done ? const Color(0xFF1B5E20) : color,
-                  decoration: done ? TextDecoration.lineThrough : null,
-                ),
-              ),
-              subtitle: step.legalReference != null
-                  ? Text(
-                      step.legalReference!,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: SgpFieldColors.fieldGuideBody,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : null,
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              activeColor: Colors.green.shade700,
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Text(
-                step.detail,
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: SgpFieldColors.fieldGuideBody,
-                ),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: done
+            ? SgpCivilGuideColors.emerald.withValues(alpha: 0.12)
+            : Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: done ? SgpCivilGuideColors.emerald : color.withValues(alpha: 0.65),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CheckboxListTile(
+            value: done,
+            onChanged: (v) => setState(() {
+              if (v == true) {
+                _completed.add(step.id);
+              } else {
+                _completed.remove(step.id);
+              }
+            }),
+            title: Text(
+              step.title,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: done ? SgpCivilGuideColors.emerald : SgpCivilGuideColors.pureWhite,
+                decoration: done ? TextDecoration.lineThrough : null,
               ),
             ),
-            if (step.subSteps.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ...step.subSteps.map(
-                (sub) => Padding(
-                  padding: const EdgeInsets.only(left: 8, bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.subdirectory_arrow_right, size: 14, color: color),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          sub,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            height: 1.35,
-                            color: SgpFieldColors.fieldGuideBody,
-                            fontWeight: FontWeight.w500,
+            subtitle: step.legalReference != null
+                ? Text(
+                    step.legalReference!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                : null,
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            activeColor: SgpCivilGuideColors.emerald,
+            checkColor: _bodyBlack,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Text(
+              step.detail,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.45,
+                fontWeight: FontWeight.w700,
+                color: SgpCivilGuideColors.pureWhite,
+              ),
+            ),
+          ),
+          if (step.subSteps.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEBEE),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _urgentRed.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                children: step.subSteps.map(
+                  (sub) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.subdirectory_arrow_right, size: 22, color: _urgentRed),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            sub,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: _bodyBlack,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ).toList(),
               ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

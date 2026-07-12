@@ -8,7 +8,7 @@
       "parent_id": "CC-CAT-CRIMINAL",
       "category": "수사·형사 민원",
       "title": "고소·고발장 접수",
-      "keywords": ["고소", "고발", "고소장", "고발장", "진정서"],
+      "keywords": ["고소", "고발", "고소장", "고발장", "진정서", "고소장 접수", "고발장 접수"],
       "intent_patterns": ["고소.*접수", "고발.*접수"],
       "jurisdictions": [
         {
@@ -228,7 +228,7 @@
       "parent_id": "CC-CAT-TRANSFER",
       "category": "타 기관 이관",
       "title": "층간소음·생활소음",
-      "keywords": ["층간", "소음", "시끄", "음악", "쿵쾅"],
+      "keywords": ["층간", "소음", "시끄", "음악", "쿵쾅", "층간 소음", "생활소음"],
       "intent_patterns": ["층간.*소음", "옆집.*시끄"],
       "jurisdictions": [
         {
@@ -364,6 +364,70 @@
       "custody_guide_lv7": "강제력 행사 불가. 의사 식별·치료 기간 소견 확보. 퇴원 시 지정 체포 또는 임의동행 재요구.",
       "admin_guide_lv8": "체포 시한은 흐르지 않으나 도주 우려 등급 상향. 치료 완료 예정 시각 수기 입력·퇴원 시 절차 재개.",
       "phone": "119"
+    },
+    {
+      "id": "CC-TYPE-PET-LEASH",
+      "parent_id": "CC-CAT-TRANSFER",
+      "category": "타 기관 이관",
+      "title": "반려견 목줄·입마개 미착용",
+      "keywords": ["개", "목줄", "입마개", "줄", "반려견", "강아지", "산책", "미착용", "풀어놓"],
+      "intent_patterns": ["개.*목줄", "목줄.*안", "입마개.*안", "개.*풀어"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LOCAL-ENV-ANIMAL",
+          "agency_name": "관할 구청 환경과·동물보호과",
+          "scope": "animal_admin",
+          "transfer": true
+        },
+        {
+          "agency_id": "AGENCY-NEIGHBOR",
+          "agency_name": "이웃사이센터(주민센터)",
+          "scope": "mediation",
+          "transfer": true
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "photo_video", "label": "목줄 미착용 사진·영상", "required": false },
+        { "doc_type": "incident_log", "label": "발생 일시·장소 기록", "required": false }
+      ],
+      "admin_guide_lv8": "동물보호법 제16조 관리의무 위반 — 지자체 환경과·동물보호과 행정 이관. 신체 피해·폭력 동반 시 형사과 수사 병행.",
+      "police_dispatch_warning": true,
+      "phone": "110"
+    },
+    {
+      "id": "CC-TYPE-PET-BITE",
+      "parent_id": "CC-CAT-CRIMINAL",
+      "category": "수사·형사 민원",
+      "title": "개 물림·교상 사고",
+      "keywords": ["물림", "물어", "교상", "개물림", "개 물림", "반려견", "강아지", "피해", "병원", "봉합"],
+      "intent_patterns": ["개.*물", "물림.*사고", "교상.*신고"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-POLICE-CIVIL-DESK",
+          "agency_name": "경찰서 통합민원실",
+          "scope": "intake",
+          "phone": "182"
+        },
+        {
+          "agency_id": "ORG-POLICE-CRIMINAL-INVEST",
+          "agency_name": "경찰서 형사과",
+          "scope": "investigation",
+          "transfer": true
+        },
+        {
+          "agency_id": "AGENCY-LOCAL-ENV-ANIMAL",
+          "agency_name": "관할 구청 동물보호과",
+          "scope": "animal_admin",
+          "transfer": true
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "medical_record", "label": "진료기록·상해진단서" },
+        { "doc_type": "photo_video", "label": "상처·현장 사진·영상" },
+        { "doc_type": "complaint_form", "label": "고소·진정서(해당 시)" }
+      ],
+      "admin_guide_lv8": "개물림·교상 — 형사과 수사 착수. 동물보호법 제16조 위반·과실치상(형법 제266조) 병행 검토. 응급처치·병원 기록 즉시 확보.",
+      "phone": "182"
     }
   ]
 }

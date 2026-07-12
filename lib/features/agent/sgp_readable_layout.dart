@@ -304,12 +304,14 @@ class ProSentenceLine extends StatelessWidget {
     required this.accent,
     this.fontSize = 13,
     this.bold = false,
+    this.textColor,
   });
 
   final String text;
   final Color accent;
   final double fontSize;
   final bool bold;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -331,8 +333,8 @@ class ProSentenceLine extends StatelessWidget {
             style: TextStyle(
               fontSize: fontSize,
               height: 1.45,
-              fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-              color: SgpAppTheme.textPrimary,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              color: textColor ?? SgpAppTheme.textPrimary,
             ),
           ),
         ),
@@ -350,6 +352,7 @@ class ProLabeledSentenceBlock extends StatelessWidget {
     required this.accent,
     this.icon,
     this.backgroundColor,
+    this.sentenceColor,
   });
 
   final String label;
@@ -357,6 +360,7 @@ class ProLabeledSentenceBlock extends StatelessWidget {
   final Color accent;
   final IconData? icon;
   final Color? backgroundColor;
+  final Color? sentenceColor;
 
   @override
   Widget build(BuildContext context) {
@@ -403,7 +407,11 @@ class ProLabeledSentenceBlock extends StatelessWidget {
             ProSentenceLine(
               text: sentences[i],
               accent: accent,
-              bold: label.contains('유발자') || label.contains('피해'),
+              bold: label.contains('유발자') ||
+                  label.contains('피해') ||
+                  sentenceColor == Colors.black,
+              textColor: sentenceColor,
+              fontSize: sentenceColor != null ? 14 : 13,
             ),
           ],
         ],
@@ -477,9 +485,10 @@ class ProAnalysisStepView extends StatelessWidget {
                 '단순 동시 입건을 지양합니다.',
                 '실질 공격 유발자와 정당방위 요건을 재검토하세요.',
               ],
-              accent: Colors.amber.shade900,
+              accent: Colors.amber.shade800,
               icon: Icons.warning_amber_rounded,
-              backgroundColor: Colors.amber.shade50,
+              backgroundColor: Colors.amber.shade100,
+              sentenceColor: Colors.black,
             ),
           ],
           const SizedBox(height: 12),

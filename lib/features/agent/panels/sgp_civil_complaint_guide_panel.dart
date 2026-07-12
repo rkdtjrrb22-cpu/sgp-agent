@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../sgp_app_theme.dart';
+import '../sgp_civil_complaint_branch.dart';
 import '../sgp_civil_complaint_data.dart';
 
 /// 스크롤 가능한 가이드 본문 (글래스 카드).
@@ -14,17 +15,22 @@ class SgpCivilComplaintGuidePanel extends StatelessWidget {
   const SgpCivilComplaintGuidePanel({
     super.key,
     required this.route,
+    this.rawText,
     this.onDismiss,
     this.embedded = true,
   });
 
   final CivilComplaintRouteResult route;
+  final String? rawText;
   final VoidCallback? onDismiss;
   final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final type = route.type;
+    final enforcement = rawText != null && rawText!.trim().isNotEmpty
+        ? route.inferEnforcement(rawText!)
+        : null;
 
     return _SgpGlassGuideCard(
       accentGradient: type.policeDispatchWarning
@@ -41,6 +47,10 @@ class SgpCivilComplaintGuidePanel extends StatelessWidget {
           if (type.policeDispatchWarning) ...[
             const SizedBox(height: 10),
             _buildDispatchWarning(),
+          ],
+          if (enforcement != null) ...[
+            const SizedBox(height: 10),
+            _buildEnforcementBranch(enforcement),
           ],
           if (type.switchToGoldenTimeProfile) ...[
             const SizedBox(height: 10),
@@ -201,6 +211,93 @@ class SgpCivilComplaintGuidePanel extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildEnforcementBranch(CivilComplaintBranchResult branch) {
+    final isCriminal = branch.isCriminal;
+    final bg = isCriminal ? const Color(0xFFFFEBEE) : const Color(0xFFE8F5E9);
+    final fg = Colors.black;
+    final accent = isCriminal ? const Color(0xFFC62828) : const Color(0xFF2E7D32);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                isCriminal ? Icons.gavel : Icons.transfer_within_a_station,
+                color: accent,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  SgpCivilComplaintBranchRouter.branchLabel(branch.branch),
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: fg,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                '${(branch.confidence * 100).round()}%',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            branch.rationale,
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (branch.legalNodeIds.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final id in branch.legalNodeIds)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: accent.withValues(alpha: 0.5)),
+                    ),
+                    child: Text(
+                      id,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: fg,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 

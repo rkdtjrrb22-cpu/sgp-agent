@@ -14,9 +14,11 @@ class SgpCivilComplaintGuideScreen extends StatelessWidget {
   const SgpCivilComplaintGuideScreen({
     super.key,
     required this.route,
+    this.rawText,
   });
 
   final CivilComplaintRouteResult route;
+  final String? rawText;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +52,7 @@ class SgpCivilComplaintGuideScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: SgpCivilComplaintGuidePanel(
                 route: route,
+                rawText: rawText,
                 embedded: false,
               ),
             ),

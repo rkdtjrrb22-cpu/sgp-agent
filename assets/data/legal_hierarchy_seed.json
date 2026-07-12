@@ -51,8 +51,60 @@
     "scope": { "country": "KR" },
     "filter_keys": ["domain_tag:animal"],
     "domain_tags": ["criminal", "special", "animal"],
+    "articles": ["제16조", "제47조", "제97조"],
+    "summary": "반려동물·맹견 관리의무(제16조)·과태료·벌칙"
+  },
+  {
+    "id": "KR-RULE-ANIMAL-ART16",
+    "level": 3,
+    "title": "동물보호법 제16조 (동물의 관리)",
+    "parent_id": "KR-LAW-ANIMAL",
+    "domain_tags": ["animal", "administrative", "leash"],
+    "articles": ["제16조"],
+    "summary": "목줄·줄 관리·입마개·동물 방치 금지"
+  },
+  {
+    "id": "KR-RULE-ANIMAL-ART97-PENALTY",
+    "level": 3,
+    "title": "동물보호법 제97조 (벌칙)",
+    "parent_id": "KR-LAW-ANIMAL",
+    "domain_tags": ["animal", "criminal", "penalty"],
     "articles": ["제97조"],
-    "summary": "반려동물·맹견 관리의무 위반"
+    "summary": "동물 학대·관리의무 위반 형사처벌"
+  },
+  {
+    "id": "KR-CRIM-266-NEGLIGENCE",
+    "level": 2,
+    "title": "형법 제266조 (과실치상)",
+    "parent_id": "KR-LAW-CRIMINAL",
+    "domain_tags": ["criminal", "negligence", "animal"],
+    "articles": ["제266조"],
+    "summary": "개물림·관리 소홀로 인한 상해 — 과실치상"
+  },
+  {
+    "id": "KR-CRIM-257-BODILY",
+    "level": 2,
+    "title": "형법 제257조 (상해)",
+    "parent_id": "KR-LAW-CRIMINAL",
+    "domain_tags": ["criminal", "bodily_injury", "animal"],
+    "articles": ["제257조"],
+    "summary": "개물림 등 신체 상해 — 고의·과실 상해죄 검토"
+  },
+  {
+    "id": "AGENCY-LOCAL-ENV-ANIMAL",
+    "level": 8,
+    "title": "지자체 환경과·동물보호과",
+    "parent_id": "CC-ROOT-POLICE-COMPLAINT",
+    "domain_tags": ["civil_complaint", "agency", "animal", "transfer"],
+    "summary": "반려견 목줄·배변·소음 행정 이관"
+  },
+  {
+    "id": "ORG-POLICE-CRIMINAL-INVEST",
+    "level": 8,
+    "title": "경찰서 형사과 수사 착수",
+    "parent_id": "CC-CAT-CRIMINAL",
+    "domain_tags": ["criminal", "investigation", "animal"],
+    "summary": "개물림·상해·폭력 동반 시 형사 수사"
   },
   {
     "id": "KR-LAW-TRAFFIC",
