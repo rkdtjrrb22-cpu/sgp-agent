@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:sgp_agent/features/agent/sgp_kgrag_loader.dart';
@@ -157,7 +156,7 @@ void main() {
         admissionAt: t0,
         now: t0.add(const Duration(hours: 24)),
       );
-      expect(rem!.inHours, 48);
+      expect(rem.inHours, 48);
     });
 
     test('72h 초과 경고', () {
@@ -328,13 +327,13 @@ void main() {
       pack = SgpKgragLoader.parsePack(json);
     });
 
-    test('target_corpus_size 750', () {
-      expect(pack.targetCorpusSize, 750);
+    test('target_corpus_size 800', () {
+      expect(pack.targetCorpusSize, 800);
     });
 
-    test('벡터 인덱스 750종', () {
+    test('벡터 인덱스 800종', () {
       final store = SgpKgragLoader.buildVectorIndex(pack);
-      expect(store.corpusSize, 750);
+      expect(store.corpusSize, 800);
     });
 
     test('가폭 긴급임시조치 판례 시드', () {

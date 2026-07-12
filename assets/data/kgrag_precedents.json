@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "model": "bge-small-ko-v1.5",
-  "target_corpus_size": 750,
+  "target_corpus_size": 800,
   "precedents": [
     {
       "id": "SC-2024-DOG-EMERGENCY",
@@ -702,6 +702,116 @@
       "domain": "narcotics_timeline",
       "holding": "검사 거부 후 지연된 영장 신청은 증거 훼손·위법수집증거 논란 유발",
       "keywords": ["거부", "영장", "지연", "시한", "강제처분"]
+    },
+    {
+      "id": "SC-2024-FORENSIC-222",
+      "court": "대법원",
+      "case_no": "2024도7001",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-LAW-CRIM-PROC-222", "KR-FORENSIC-DEATH-SCENE"],
+      "domain": "forensic_examination",
+      "holding": "변사자의 검시는 현장 보존·검사 지휘·감식 절차를 포함하며 현장 훼손 시 증거능력 훼손",
+      "keywords": ["변사", "검시", "제222조", "현장보존", "형사소송법"]
+    },
+    {
+      "id": "SC-2024-FORENSIC-JUDICIAL",
+      "court": "대법원",
+      "case_no": "2024도7002",
+      "article_refs": ["형사소송법 제222조", "제116조"],
+      "ontology_nodes": ["KR-FORENSIC-JUDICIAL-AUTOPSY"],
+      "domain": "judicial_autopsy",
+      "holding": "범죄 혐의점 있는 변사는 부검 영장 신청·검사 지휘 하 사법 변사로 처리",
+      "keywords": ["부검", "영장", "검사지휘", "범죄혐의", "사법변사"]
+    },
+    {
+      "id": "SC-2024-FORENSIC-ADMIN",
+      "court": "대법원",
+      "case_no": "2024도7003",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-ADMIN-HANDOVER"],
+      "domain": "administrative_death",
+      "holding": "범죄 혐의 없는 변사는 행정 변사로 유족 인도·장례 절차 진행",
+      "keywords": ["행정변사", "유족인도", "질병사", "자연사", "인도"]
+    },
+    {
+      "id": "SC-2024-FORENSIC-KCSI",
+      "court": "대법원",
+      "case_no": "2024도7004",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-KCSI-LINK", "KR-FORENSIC-DEATH-SCENE"],
+      "domain": "kcsi_forensic",
+      "holding": "KCSI 과학수사팀 감식 전 현장 통제선 설치·사진 촬영이 필수",
+      "keywords": ["KCSI", "과학수사", "감식", "통제선", "현장사진"]
+    },
+    {
+      "id": "SC-2024-FORENSIC-FALSE",
+      "court": "대법원",
+      "case_no": "2024도7005",
+      "article_refs": ["형법 제227조"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE"],
+      "domain": "false_examination_report",
+      "holding": "허위 검시서 작성·현장 훼손은 허위공문서작성·증거인멸 논란",
+      "keywords": ["허위검시서", "현장훼손", "증거오염", "검시서"]
+    },
+    {
+      "id": "SC-2024-FORENSIC-PROPERTY",
+      "court": "서울고법",
+      "case_no": "2024노7006",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE"],
+      "domain": "decedent_property",
+      "holding": "변사자 소지품·유류품 임의 처분 금지 — 압수·목록·봉인",
+      "keywords": ["소지품", "유류품", "임의처분", "압수", "봉인"]
+    },
+    {
+      "id": "SC-2024-CUSTODY-RIGHTS",
+      "court": "대법원",
+      "case_no": "2024도7101",
+      "article_refs": ["경찰관직무집행법 제12조"],
+      "ontology_nodes": ["KR-LAW-CUSTODY-MGMT", "KR-CUSTODY-ADMISSION"],
+      "domain": "custody_rights_notice",
+      "holding": "유치인 권리 고지(변호인 선임·묵비권) 미이행 시 위법수집증거·국가배상 리스크",
+      "keywords": ["유치", "권리고지", "변호인", "묵비권", "입감"]
+    },
+    {
+      "id": "SC-2024-CUSTODY-BODY",
+      "court": "대법원",
+      "case_no": "2024도7102",
+      "article_refs": ["유치장 관리 지침"],
+      "ontology_nodes": ["KR-CUSTODY-ADMISSION"],
+      "domain": "custody_body_search",
+      "holding": "입감 시 신체검사·살촕검사 및 소지품 압수 목록 작성은 필수",
+      "keywords": ["신체검사", "살촕", "소지품", "압수목록", "입감"]
+    },
+    {
+      "id": "SC-2024-CUSTODY-SPECIAL",
+      "court": "대법원",
+      "case_no": "2024도7103",
+      "article_refs": ["유치장 관리 지침"],
+      "ontology_nodes": ["KR-CUSTODY-SPECIAL-GUARD"],
+      "domain": "custody_special_guard",
+      "holding": "자해·자살 고위험 유치인은 1시간 순찰·CCTV 집중관찰 특별계호 필수",
+      "keywords": ["자해", "자살", "특별계호", "순찰", "CCTV"]
+    },
+    {
+      "id": "SC-2024-CUSTODY-48H",
+      "court": "대법원",
+      "case_no": "2024도7104",
+      "article_refs": ["형사소송법 제213조의2"],
+      "ontology_nodes": ["KR-CUSTODY-MEDICAL-CHAIN"],
+      "domain": "custody_48h_chain",
+      "holding": "유치장 내 의료 조치 시에도 48시간 구속 시한·계호 상태 동시 준수",
+      "keywords": ["48시간", "구속시한", "의료조치", "유치장", "계호"]
+    },
+    {
+      "id": "SC-2024-CUSTODY-DERELICTION",
+      "court": "대법원",
+      "case_no": "2024도7105",
+      "article_refs": ["형법 제122조"],
+      "ontology_nodes": ["KR-LAW-CUSTODY-MGMT", "ORG-POLICE-DISCIPLINE"],
+      "domain": "custody_accident_dereliction",
+      "holding": "유치장 내 사고·자살 방치 시 직무유기·국가배상책임",
+      "keywords": ["유치장사고", "직무유기", "국가배상", "자살", "방치"]
     }
   ]
 }

@@ -5,8 +5,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import 'sgp_app_theme.dart';
-
 abstract final class SgpGlassSkinColors {
   static const neonBlue = Color(0xFF00B0FF);
   static const neonBlueBright = Color(0xFF40C4FF);

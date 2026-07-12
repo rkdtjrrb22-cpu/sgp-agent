@@ -827,5 +827,68 @@
     "title": "감정처분허가장·압수수색영장",
     "parent_id": "KR-LAW-NARCOTICS",
     "domain_tags": ["narcotics", "warrant"]
+  },
+  {
+    "id": "KR-LAW-CRIM-PROC-222",
+    "level": 5,
+    "title": "형사소송법 제222조(변사자의 검시)",
+    "parent_id": "KR-LAW-ROOT",
+    "domain_tags": ["forensic", "death_investigation"]
+  },
+  {
+    "id": "KR-FORENSIC-DEATH-SCENE",
+    "level": 6,
+    "title": "변사 현장 보존·통제",
+    "parent_id": "KR-LAW-CRIM-PROC-222",
+    "domain_tags": ["forensic", "scene_control"]
+  },
+  {
+    "id": "KR-FORENSIC-JUDICIAL-AUTOPSY",
+    "level": 6,
+    "title": "사법 변사(부검·검사 지휘)",
+    "parent_id": "KR-LAW-CRIM-PROC-222",
+    "domain_tags": ["forensic", "autopsy"]
+  },
+  {
+    "id": "KR-FORENSIC-ADMIN-HANDOVER",
+    "level": 6,
+    "title": "행정 변사(유족 인도)",
+    "parent_id": "KR-LAW-CRIM-PROC-222",
+    "domain_tags": ["forensic", "administrative"]
+  },
+  {
+    "id": "KR-FORENSIC-KCSI-LINK",
+    "level": 6,
+    "title": "KCSI 과학수사 연계",
+    "parent_id": "KR-FORENSIC-DEATH-SCENE",
+    "domain_tags": ["forensic", "kcsi"]
+  },
+  {
+    "id": "KR-LAW-CUSTODY-MGMT",
+    "level": 5,
+    "title": "유치인 관리·경찰관직무집행법",
+    "parent_id": "KR-LAW-ROOT",
+    "domain_tags": ["custody", "detention"]
+  },
+  {
+    "id": "KR-CUSTODY-ADMISSION",
+    "level": 6,
+    "title": "유치장 입감·신체검사",
+    "parent_id": "KR-LAW-CUSTODY-MGMT",
+    "domain_tags": ["custody", "admission"]
+  },
+  {
+    "id": "KR-CUSTODY-SPECIAL-GUARD",
+    "level": 6,
+    "title": "특별계호·순찰 타임라인",
+    "parent_id": "KR-LAW-CUSTODY-MGMT",
+    "domain_tags": ["custody", "special_guard"]
+  },
+  {
+    "id": "KR-CUSTODY-MEDICAL-CHAIN",
+    "level": 6,
+    "title": "유치장 의료·48h 시한 연동",
+    "parent_id": "KR-LAW-CUSTODY-MGMT",
+    "domain_tags": ["custody", "medical", "48h"]
   }
 ]

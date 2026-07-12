@@ -5,11 +5,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../agent/sgp_procedure_timeline.dart';
-import '../agent/sgp_app_theme.dart';
-import 'sgp_arrest_timeline_phase.dart';
+import '../../agent/sgp_procedure_timeline.dart';
+import '../../agent/sgp_app_theme.dart';
+import '../sgp_arrest_timeline_phase.dart';
 
-export 'sgp_arrest_timeline_phase.dart';
+export '../sgp_arrest_timeline_phase.dart';
 
 /// 지구대 무전 T-0 데이터를 내근 대시보드 48시간 게이지로 표출.
 class SgpArrestTimelineBar extends StatefulWidget {

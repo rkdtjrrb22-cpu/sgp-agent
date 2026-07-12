@@ -44,6 +44,9 @@ import 'sgp_operational_mode.dart';
 import 'sgp_statute_domain_engine.dart';
 import 'widgets/sgp_mode_toggle_button.dart';
 import '../investigation/widgets/sgp_arrest_timeline_bar.dart';
+import 'panels/sgp_mock_defense_panel.dart';
+import '../investigation/modules/sgp_mock_defense_engine.dart';
+import '../security/sgp_secure_crypto.dart';
 import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
@@ -76,6 +79,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   final _scrollController = ScrollController();
   final _storageSectionKey = GlobalKey();
   final _sttFieldKey = GlobalKey();
+  final _biometricGate = SgpSimulatedBiometricAuth();
   final _sttFocusNode = FocusNode();
 
   LawCheckList _checklist = const LawCheckList();
@@ -123,6 +127,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   TrafficAccidentResult? _trafficResult;
   StalkingResult? _stalkingResult;
   JuvenileResult? _juvenileResult;
+  MockDefenseResult? _mockDefenseResult;
+  bool _mockDefenseRunning = false;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -204,10 +210,21 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       SgpLegalOntologySession.instance.loadFromRegistry();
     }
     try {
-      await SgpKgragAssetLoader.loadFromAssets();
+      if (SgpProductionStub.isActive) {
+        _biometricGate.grantForTest();
+      }
+      await SgpKgragAssetLoader.loadSecureFromAssets(
+        biometric: _biometricGate,
+        key: SgpSecureCrypto.corpusKeyMaterial(),
+      );
       _kgragIndexReady = true;
     } catch (_) {
-      _kgragIndexReady = false;
+      try {
+        await SgpKgragAssetLoader.loadFromAssets();
+        _kgragIndexReady = true;
+      } catch (_) {
+        _kgragIndexReady = false;
+      }
     }
     if (!mounted) return;
     final ota = SgpLegalHierarchyOta.instance.lastRefreshStatus;
@@ -1503,11 +1520,55 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     );
   }
 
+  void _runMockDefense() {
+    if (_mockDefenseRunning) return;
+    setState(() => _mockDefenseRunning = true);
+    final input = MockDefenseAnalyzeInput(
+      rawText: _rawTextController.text,
+      checklist: MockDefenseChecklist(
+        isWeaponUsed: _checklist.isWeaponUsed,
+        isFleeing: _checklist.isFleeing,
+        isSeizureConstraintReviewed: _checklist.isSeizureConstraintReviewed,
+      ),
+      evidenceNoticeComplete: _procedureTimeline?.nodes.any(
+            (n) =>
+                n.id == 'evidence_notice' &&
+                n.checkItems.any((c) => c.checked),
+          ) ??
+          false,
+      kgragReasoning: _kgragResult,
+    );
+    final result = SgpMockDefenseEngine.analyze(
+      input: input,
+      kgrag: _kgragResult,
+    );
+    if (!mounted) return;
+    setState(() {
+      _mockDefenseResult = result;
+      _mockDefenseRunning = false;
+    });
+    _showSnack(result.summary);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: SgpFieldColors.background,
+      floatingActionButton: _operationalMode == SgpOperationalMode.investigation
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: SgpMockDefenseFab(
+                  loading: _mockDefenseRunning,
+                  riskLevel: _mockDefenseResult?.overallRisk,
+                  onPressed: _runMockDefense,
+                ),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       appBar: AppBar(
         title: const Text('SGP-Agent'),
         actions: [
@@ -1688,6 +1749,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
             if (_antiCorruptionAssessment != null) ...[
               const SizedBox(height: 16),
               SgpAntiCorruptionPanel(assessment: _antiCorruptionAssessment!),
+            ],
+            if (_operationalMode == SgpOperationalMode.investigation &&
+                _mockDefenseResult != null) ...[
+              const SizedBox(height: 16),
+              SgpMockDefensePanel(result: _mockDefenseResult!),
             ],
             if (_operationalMode == SgpOperationalMode.investigation &&
                 _procedureTimeline == null) ...[
