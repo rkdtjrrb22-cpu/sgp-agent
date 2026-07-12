@@ -812,6 +812,206 @@
       "domain": "custody_accident_dereliction",
       "holding": "유치장 내 사고·자살 방치 시 직무유기·국가배상책임",
       "keywords": ["유치장사고", "직무유기", "국가배상", "자살", "방치"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-POLICELINE-01",
+      "court": "대법원",
+      "case_no": "2026도8001",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-LAW-CRIM-PROC-222", "KR-FORENSIC-DEATH-SCENE"],
+      "domain": "death_scene_police_line",
+      "holding": "변사 현장 폴리스라인 지연 설치로 제3자 출입이 발생한 경우 현장 사진과 유류품 증거능력이 탄핵될 수 있음",
+      "keywords": ["변사", "폴리스라인", "통제선", "증거능력", "현장보존"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-POLICELINE-02",
+      "court": "서울고법",
+      "case_no": "2026노8002",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-LAW-CRIM-PROC-222", "KR-FORENSIC-DEATH-SCENE"],
+      "domain": "death_scene_police_line",
+      "holding": "최초 출동 경찰관의 현장 출입 통제 누락은 검시 결과 신빙성 판단의 중요 감점 요소",
+      "keywords": ["최초출동", "출입통제", "검시", "신빙성", "현장"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-EVIDENCE-03",
+      "court": "대법원",
+      "case_no": "2026도8003",
+      "article_refs": ["형사소송법 제308조의2"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE"],
+      "domain": "death_scene_evidence_preservation",
+      "holding": "사체 주변 유류품을 임의 이동한 뒤 촬영한 사진은 원상태 보존 입증이 없으면 증거가치가 제한됨",
+      "keywords": ["유류품", "임의이동", "현장사진", "증거가치", "원상태"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-EVIDENCE-04",
+      "court": "부산고법",
+      "case_no": "2026노8004",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE", "KR-FORENSIC-KCSI-LINK"],
+      "domain": "death_scene_evidence_preservation",
+      "holding": "KCSI 도착 전 혈흔 주변 청소·정리 정황은 사법 변사 판단과 증거보전 위반 판단에 직접 반영",
+      "keywords": ["KCSI", "혈흔", "청소", "증거보전", "사법변사"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-WITNESS-05",
+      "court": "대법원",
+      "case_no": "2026도8005",
+      "article_refs": ["형사소송법 제312조"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE"],
+      "domain": "death_scene_witness_capture",
+      "holding": "최초 발견자 진술을 현장에서 즉시 녹음하지 않아 사후 진술 번복이 발생한 경우 초동조치 적정성이 문제됨",
+      "keywords": ["최초발견자", "진술녹음", "진술번복", "초동조치", "목격자"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-WITNESS-06",
+      "court": "서울고법",
+      "case_no": "2026노8006",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE"],
+      "domain": "death_scene_witness_capture",
+      "holding": "유족의 최초 진술과 변사자 생활관계 메모는 행정 변사와 사법 변사 분기 판단의 핵심 기초자료",
+      "keywords": ["유족진술", "생활관계", "행정변사", "사법변사", "분기"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-AUTOPSY-07",
+      "court": "대법원",
+      "case_no": "2026도8007",
+      "article_refs": ["형사소송법 제222조", "형사소송법 제215조"],
+      "ontology_nodes": ["KR-FORENSIC-JUDICIAL-AUTOPSY"],
+      "domain": "judicial_autopsy_warrant",
+      "holding": "타살 의심 상흔이 있는데도 행정 변사로 종결한 사건은 부검영장 신청 누락으로 수사미진 판단",
+      "keywords": ["타살의심", "상흔", "부검영장", "수사미진", "사법변사"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-AUTOPSY-08",
+      "court": "대전고법",
+      "case_no": "2026노8008",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-JUDICIAL-AUTOPSY"],
+      "domain": "judicial_autopsy_warrant",
+      "holding": "목 조름 의심 변사는 검사 검시 지휘와 부검 필요성 소명이 문서화되어야 함",
+      "keywords": ["목조름", "검사지휘", "부검", "소명", "문서화"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-ADMIN-09",
+      "court": "대법원",
+      "case_no": "2026도8009",
+      "article_refs": ["변사자 처리 규칙 제6조"],
+      "ontology_nodes": ["KR-FORENSIC-ADMIN-HANDOVER"],
+      "domain": "administrative_death_handover",
+      "holding": "질병사 정황과 주치의 소견이 일치하는 경우 행정 변사 인도 절차는 유족 확인과 사체인도서 작성으로 충분",
+      "keywords": ["질병사", "주치의", "행정변사", "사체인도서", "유족확인"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-ADMIN-10",
+      "court": "광주고법",
+      "case_no": "2026노8010",
+      "article_refs": ["변사자 처리 규칙 제6조"],
+      "ontology_nodes": ["KR-FORENSIC-ADMIN-HANDOVER"],
+      "domain": "administrative_death_handover",
+      "holding": "노환·병사로 판단하더라도 유류품 목록과 유족 인수 서명 누락 시 민원·감찰 리스크가 발생",
+      "keywords": ["노환", "병사", "유류품목록", "유족서명", "감찰"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-FALSE-11",
+      "court": "대법원",
+      "case_no": "2026도8011",
+      "article_refs": ["형법 제227조"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE", "ORG-POLICE-DISCIPLINE"],
+      "domain": "false_examination_report",
+      "holding": "검시서에 현장 훼손·유류품 이동 사실을 누락하면 허위공문서작성 및 감찰 대상이 될 수 있음",
+      "keywords": ["검시서", "허위공문서", "현장훼손", "유류품이동", "감찰"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-FALSE-12",
+      "court": "서울고법",
+      "case_no": "2026노8012",
+      "article_refs": ["형법 제122조"],
+      "ontology_nodes": ["ORG-POLICE-DISCIPLINE"],
+      "domain": "false_examination_report",
+      "holding": "사법 변사 의심 자료를 축소 기재해 행정 종결한 경우 직무유기와 국가배상 판단 자료가 됨",
+      "keywords": ["축소기재", "행정종결", "직무유기", "국가배상", "사법변사"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-KCSI-13",
+      "court": "대법원",
+      "case_no": "2026도8013",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-KCSI-LINK"],
+      "domain": "kcsi_forensic_handoff",
+      "holding": "KCSI 감식 전 현장 보존 상태와 인계 시각은 사법 변사 기록의 필수 메타데이터",
+      "keywords": ["KCSI", "인계시각", "메타데이터", "현장보존", "감식"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-KCSI-14",
+      "court": "부산고법",
+      "case_no": "2026노8014",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-KCSI-LINK", "KR-FORENSIC-JUDICIAL-AUTOPSY"],
+      "domain": "kcsi_forensic_handoff",
+      "holding": "현장감식팀 인계 전 무전 기록과 사진 순서가 맞지 않으면 사후 조작 의심을 받을 수 있음",
+      "keywords": ["현장감식", "무전기록", "사진순서", "사후조작", "인계"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-OFFLINE-15",
+      "court": "대법원",
+      "case_no": "2026도8015",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE"],
+      "domain": "offline_death_handoff",
+      "holding": "외근 초동조치 데이터와 내근 검시 지휘 기록의 시각 불일치는 사법 절차 신뢰성을 약화",
+      "keywords": ["오프라인인계", "초동데이터", "검시지휘", "시각불일치", "신뢰성"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-OFFLINE-16",
+      "court": "인천지법",
+      "case_no": "2026고합8016",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-DEATH-SCENE"],
+      "domain": "offline_death_handoff",
+      "holding": "통신 장애 상황에서도 외근 현장 체크리스트와 음성 메모를 단말 내 보존하면 내근 수사 인계의 연속성이 인정",
+      "keywords": ["통신장애", "음성메모", "단말보존", "인계연속성", "체크리스트"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-DOC-17",
+      "court": "대법원",
+      "case_no": "2026도8017",
+      "article_refs": ["형사소송법 제215조", "형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-JUDICIAL-AUTOPSY"],
+      "domain": "death_document_builder",
+      "holding": "부검영장 신청서에는 범죄 혐의점, 현장 보존 상태, 유류품 목록, 목격자 진술 요지가 함께 기재되어야 함",
+      "keywords": ["부검영장", "범죄혐의점", "유류품목록", "목격자진술", "서류"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-DOC-18",
+      "court": "서울고법",
+      "case_no": "2026노8018",
+      "article_refs": ["변사자 처리 규칙 제6조"],
+      "ontology_nodes": ["KR-FORENSIC-ADMIN-HANDOVER"],
+      "domain": "death_document_builder",
+      "holding": "사체인도서에는 인도 상대방 신원, 인도 시각, 소지품 목록, 행정 변사 판단 근거가 특정되어야 함",
+      "keywords": ["사체인도서", "인도시각", "소지품목록", "행정변사", "판단근거"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-ROUTE-19",
+      "court": "대법원",
+      "case_no": "2026도8019",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-FORENSIC-JUDICIAL-AUTOPSY", "KR-FORENSIC-ADMIN-HANDOVER"],
+      "domain": "death_route_decision",
+      "holding": "행정 변사와 사법 변사 분기 판단은 외상, 현장 훼손, 목격자 진술, KCSI 의견을 종합해야 함",
+      "keywords": ["분기판단", "외상", "현장훼손", "목격자", "KCSI"]
+    },
+    {
+      "id": "SC-2026-S14-DEATH-ROUTE-20",
+      "court": "수원고법",
+      "case_no": "2026노8020",
+      "article_refs": ["형사소송법 제222조"],
+      "ontology_nodes": ["KR-LAW-CRIM-PROC-222", "KR-FORENSIC-DEATH-SCENE"],
+      "domain": "death_route_decision",
+      "holding": "외근 초동 보존 실패가 확인된 경우 내근 수사팀은 검시 지휘서에 보완 감식 필요성을 명시해야 함",
+      "keywords": ["초동보존실패", "내근수사", "검시지휘서", "보완감식", "변사"]
     }
   ]
 }

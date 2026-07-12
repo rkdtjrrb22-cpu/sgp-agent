@@ -45,8 +45,14 @@ import 'sgp_statute_domain_engine.dart';
 import 'widgets/sgp_mode_toggle_button.dart';
 import '../investigation/widgets/sgp_arrest_timeline_bar.dart';
 import 'panels/sgp_mock_defense_panel.dart';
+import 'panels/sgp_custody_panel.dart';
 import '../investigation/modules/sgp_mock_defense_engine.dart';
+import '../investigation/modules/sgp_forensic_assistant.dart';
+import '../investigation/modules/sgp_death_logic_hub.dart';
+import '../investigation/screens/sgp_death_scene_router.dart';
+import '../control/sgp_custody_management.dart';
 import '../security/sgp_secure_crypto.dart';
+import 'sgp_vector_store.dart';
 import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
@@ -129,6 +135,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   JuvenileResult? _juvenileResult;
   MockDefenseResult? _mockDefenseResult;
   bool _mockDefenseRunning = false;
+  SgpDeathCaseDecision? _deathCaseDecision;
+  CustodyManagementResult? _custodyResult;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -358,6 +366,77 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _refreshKgragReasoning();
     _refreshAntiCorruption();
     _refreshStatuteDomain();
+    _refreshForensicAndCustody();
+  }
+
+  bool _timelineCheckDone(String nodeId, String checkId) {
+    final timeline = _procedureTimeline;
+    if (timeline == null) return false;
+    for (final node in timeline.nodes) {
+      if (node.id != nodeId) continue;
+      for (final item in node.checkItems) {
+        if (item.id == checkId && item.checked) return true;
+      }
+    }
+    return false;
+  }
+
+  void _refreshForensicAndCustody() {
+    final text = _rawTextController.text.trim();
+    if (text.isEmpty) {
+      if ((_deathCaseDecision != null || _custodyResult != null) && mounted) {
+        setState(() {
+          _deathCaseDecision = null;
+          _custodyResult = null;
+        });
+      }
+      return;
+    }
+
+    final forensic = SgpForensicAssistant.analyze(
+      text,
+      policeLineDeclared: RegExp(
+        r'(통제선|police\s*line|현장\s*통제|출입\s*통제)',
+        caseSensitive: false,
+      ).hasMatch(text),
+      propertyListDeclared: _checklist.isSeizureConstraintReviewed ||
+          _timelineCheckDone('custody_handover_prep', 'belongings_list') ||
+          RegExp(r'(소지품\s*목록|압수\s*목록|봉인)').hasMatch(text),
+      kcsiNotified: RegExp(r'(KCSI|과학수사|감식\s*팀|현장\s*감식)', caseSensitive: false)
+          .hasMatch(text),
+    );
+
+    final custody = SgpCustodyManagement.assess(
+      text,
+      custodyStart: _procedureTimeline?.t0,
+      rightsNoticeGiven: _timelineCheckDone('t0', 'miranda') ||
+          RegExp(r'(권리\s*고지|변호인|묵비권)').hasMatch(text),
+      bodySearchCompleted: _timelineCheckDone('custody_handover_prep', 'health_check') ||
+          RegExp(r'(신체검사|살촕)').hasMatch(text),
+      seizureListComplete: _checklist.isSeizureConstraintReviewed ||
+          _timelineCheckDone('custody_handover_prep', 'belongings_list') ||
+          RegExp(r'(소지품\s*압수|압수\s*목록|압수목록)').hasMatch(text),
+      specialGuardAssigned: RegExp(r'(특별계호|CCTV\s*집중|1시간\s*순찰)').hasMatch(text),
+    );
+    final deathDecision = forensic.isDeathScene
+        ? SgpDeathLogicHub(SgpVectorStoreSession.instance).processDeathCase({
+            'case_id': _procedureTimeline?.t0.millisecondsSinceEpoch.toString() ??
+                'DEATH-${DateTime.now().millisecondsSinceEpoch}',
+            'narrative': text,
+            'has_foul_play': forensic.requiresJudicialPath,
+            'police_line_installed': forensic.policeLineInstalled,
+            'evidence_preserved': forensic.propertyHandlingCompliant,
+            'witness_statement_captured':
+                RegExp(r'(목격자|최초\s*발견자|유족\s*진술|진술\s*녹음)').hasMatch(text),
+            'offline_handoff_requested': _operationalMode == SgpOperationalMode.field,
+          })
+        : null;
+
+    if (!mounted) return;
+    setState(() {
+      _deathCaseDecision = deathDecision;
+      _custodyResult = custody.isCustodyContext ? custody : null;
+    });
   }
 
   void _refreshStatuteDomain() {
@@ -937,6 +1016,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
           : SgpQuantumLegalComparison.fromJson(record.quantumLegalAnalysis!);
     });
 
+    _refreshForensicAndCustody();
     _showSnack('기록 불러옴 — 자기판단 확인 후 재확정 필요');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -1083,6 +1163,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     );
     if (timeline != null && mounted) {
       setState(() => _procedureTimeline = timeline);
+      _refreshForensicAndCustody();
       _showSnack('T-0 기준 사법 절차 타임라인이 시작되었습니다.');
     }
   }
@@ -1093,6 +1174,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       _procedureTimeline = _procedureTimeline!.toggleCheck(nodeId, checkId, value);
     });
     _refreshQuantumAnalysis();
+    _refreshForensicAndCustody();
   }
 
   void _onThreatLevelChanged(PhysicalThreatLevel level) {
@@ -1749,6 +1831,23 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
             if (_antiCorruptionAssessment != null) ...[
               const SizedBox(height: 16),
               SgpAntiCorruptionPanel(assessment: _antiCorruptionAssessment!),
+            ],
+            if (_deathCaseDecision != null) ...[
+              const SizedBox(height: 16),
+              SgpDeathSceneRouter(
+                currentMode: _operationalMode,
+                caseId: _deathCaseDecision!.caseId,
+                decision: _deathCaseDecision!,
+                onReportToInvestigation: () {
+                  setState(() => _operationalMode = SgpOperationalMode.investigation);
+                  _showSnack('변사 초동 데이터가 내근 형사과 대시보드로 인계되었습니다.');
+                },
+              ),
+            ],
+            if (_operationalMode == SgpOperationalMode.investigation &&
+                _custodyResult != null) ...[
+              const SizedBox(height: 16),
+              SgpCustodyPanel(result: _custodyResult!),
             ],
             if (_operationalMode == SgpOperationalMode.investigation &&
                 _mockDefenseResult != null) ...[
