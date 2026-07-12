@@ -30,7 +30,13 @@ enum LegalPredicate {
   hasJurisdiction('has_jurisdiction'),
 
   /// S7-D — 민원 유형 → 필요 서류
-  requiresDocument('requires_document');
+  requiresDocument('requires_document'),
+
+  /// S8-MED — 병원 이송 시 사법 타임라인 정지 여부
+  freezesTimeline('freezes_timeline'),
+
+  /// S8-MED — 치료 중 2인 1조 계호 등 신병 확보 필요
+  requiresGuard('requires_guard');
 
   const LegalPredicate(this.apiValue);
 

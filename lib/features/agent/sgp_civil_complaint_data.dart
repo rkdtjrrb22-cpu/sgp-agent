@@ -18,6 +18,10 @@ class CivilComplaintType {
     this.mapUrl,
     this.formUrl,
     this.phone,
+    this.medTransferBranch,
+    this.freezesTimeline = false,
+    this.requiresGuard = false,
+    this.custodyGuideLv7 = '',
   });
 
   final String id;
@@ -34,6 +38,13 @@ class CivilComplaintType {
   final String? mapUrl;
   final String? formUrl;
   final String? phone;
+  final String? medTransferBranch;
+  final bool freezesTimeline;
+  final bool requiresGuard;
+  final String custodyGuideLv7;
+
+  bool get isMedicalTransferGuide =>
+      medTransferBranch != null && medTransferBranch!.isNotEmpty;
 
   factory CivilComplaintType.fromJson(Map<String, dynamic> json) {
     return CivilComplaintType(
@@ -60,6 +71,10 @@ class CivilComplaintType {
       mapUrl: json['map_url'] as String?,
       formUrl: json['form_url'] as String?,
       phone: json['phone'] as String?,
+      medTransferBranch: json['med_transfer_branch'] as String?,
+      freezesTimeline: json['freezes_timeline'] as bool? ?? false,
+      requiresGuard: json['requires_guard'] as bool? ?? false,
+      custodyGuideLv7: json['custody_guide_lv7'] as String? ?? '',
     );
   }
 }

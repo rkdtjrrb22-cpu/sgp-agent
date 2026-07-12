@@ -296,6 +296,74 @@
       "admin_guide_lv8": "노점·무허가 영업은 지자체 단속 소관. 경찰은 폭력·교통 방해 등 형사사건 연계 시.",
       "police_dispatch_warning": true,
       "phone": "110"
+    },
+    {
+      "id": "CC-TYPE-MED-TRANSFER-ARREST",
+      "parent_id": "CC-CAT-CRIMINAL",
+      "category": "수사·형사 민원",
+      "title": "응급환자 이송 — 현행범·긴급체포 후 병원 이송",
+      "keywords": ["응급", "병원", "이송", "119", "외상", "의식불명", "응급실", "현행범", "긴급체포"],
+      "intent_patterns": ["체포.*병원", "병원.*이송", "응급.*이송", "현행범.*병원"],
+      "jurisdictions": [
+        {
+          "agency_id": "MED-TRANSFER",
+          "agency_name": "응급환자 이송(MED-TRANSFER)",
+          "scope": "emergency_transport",
+          "transfer": true
+        },
+        {
+          "agency_id": "CUSTODY-MGMT",
+          "agency_name": "치료 중 신병확보(CUSTODY-MGMT)",
+          "scope": "hospital_custody"
+        },
+        {
+          "agency_id": "POLICE-GUARD",
+          "agency_name": "도주 방지 수배계(POLICE-GUARD)",
+          "scope": "two_officer_guard"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "custody_handover_form", "label": "신병 인계서" },
+        { "doc_type": "health_assessment", "label": "건강상태·외상 확인 기록" },
+        { "doc_type": "hospital_treatment_note", "label": "응급실·입원 치료 경과" }
+      ],
+      "med_transfer_branch": "arrest_after",
+      "freezes_timeline": false,
+      "requires_guard": true,
+      "custody_guide_lv7": "체포 영장 없이 인신구속 유지. 병원 응급실·입원실 내 2인 1조 교대 계호(Guard) 배치.",
+      "admin_guide_lv8": "이송 중에도 체포 48h 시한이 멈추지 않음. 신속한 치료 후 검사 지휘·영장 신청 분기 확보.",
+      "phone": "119"
+    },
+    {
+      "id": "CC-TYPE-MED-TRANSFER-VOLUNTARY",
+      "parent_id": "CC-CAT-CRIMINAL",
+      "category": "수사·형사 민원",
+      "title": "응급환자 이송 — 임의동행·병원 선(先) 이송",
+      "keywords": ["임의동행", "병원", "선이송", "응급", "치료", "퇴원", "가출", "실종"],
+      "intent_patterns": ["임의.*병원", "병원.*선.*이송", "치료.*동행", "응급.*동행"],
+      "jurisdictions": [
+        {
+          "agency_id": "MED-TRANSFER",
+          "agency_name": "응급환자 이송(MED-TRANSFER)",
+          "scope": "voluntary_transport"
+        },
+        {
+          "agency_id": "CUSTODY-MGMT",
+          "agency_name": "치료 중 신병확보(CUSTODY-MGMT)",
+          "scope": "administrative_oversight"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "doctor_identification", "label": "주치의 식별·진단서" },
+        { "doc_type": "treatment_period_opinion", "label": "치료 기간 소견" },
+        { "doc_type": "voluntary_accompaniment_log", "label": "임의동행·동의 기록" }
+      ],
+      "med_transfer_branch": "voluntary_first",
+      "freezes_timeline": true,
+      "requires_guard": false,
+      "custody_guide_lv7": "강제력 행사 불가. 의사 식별·치료 기간 소견 확보. 퇴원 시 지정 체포 또는 임의동행 재요구.",
+      "admin_guide_lv8": "체포 시한은 흐르지 않으나 도주 우려 등급 상향. 치료 완료 예정 시각 수기 입력·퇴원 시 절차 재개.",
+      "phone": "119"
     }
   ]
 }

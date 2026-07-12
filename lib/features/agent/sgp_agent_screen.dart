@@ -27,10 +27,13 @@ import 'sgp_court_precedents_ota.dart';
 import 'sgp_legal_hierarchy.dart';
 import 'sgp_legal_hierarchy_ota.dart';
 import 'sgp_legal_ontology_session.dart';
+import 'sgp_legal_ontology.dart';
 import 'sgp_demo_field_scenario.dart';
 import 'sgp_civil_complaint_loader.dart';
 import 'sgp_civil_complaint_router.dart';
 import 'sgp_civil_complaint_guide.dart';
+import 'sgp_medical_custody_engine.dart';
+import 'panels/sgp_medical_transfer_guide_panel.dart';
 import 'sgp_civil_complaint_data.dart';
 import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
@@ -98,6 +101,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   CivilComplaintNodePack? _civilComplaintPack;
   CivilComplaintRouteResult? _civilComplaintRoute;
   bool _civilComplaintDismissed = false;
+  CivilComplaintRouteResult? _medicalTransferRoute;
+  SgpMedicalTransferSession? _medicalTransferSession;
+  MedicalCustodyDeadline? _medicalTransferDeadline;
+  bool _medicalTransferDismissed = false;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -306,6 +313,58 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _refreshQuantumAnalysis();
     _refreshForceAssessment();
     _refreshCivilComplaintRoute();
+    _refreshMedicalTransferRoute();
+  }
+
+  void _refreshMedicalTransferRoute() {
+    final pack = _civilComplaintPack;
+    if (pack == null) return;
+    final text = _rawTextController.text.trim();
+    if (text.isEmpty || _medicalTransferDismissed) {
+      if (_medicalTransferRoute != null && mounted) {
+        setState(() {
+          _medicalTransferRoute = null;
+          _medicalTransferDeadline = null;
+        });
+      }
+      return;
+    }
+    final graph = SgpLegalOntologySession.instance.graph;
+    final route = SgpCivilComplaintRouter.routeFromText(text, pack, graph: graph);
+    if (route == null || !route.type.isMedicalTransferGuide) {
+      if (_medicalTransferRoute != null && mounted) {
+        setState(() {
+          _medicalTransferRoute = null;
+          _medicalTransferDeadline = null;
+        });
+      }
+      return;
+    }
+    if (!route.isHighConfidence) return;
+
+    final branch = MedTransferBranch.fromCode(route.type.medTransferBranch) ??
+        MedTransferBranch.arrestAfter;
+    final arrestAt = _procedureTimeline?.t0 ?? DateTime.now();
+    final session = (_medicalTransferSession ??
+            SgpMedicalTransferSession(
+              branch: branch,
+              arrestAt: arrestAt,
+              status: MedTransferStatus.inTransit,
+            ))
+        .copyWith(branch: branch, arrestAt: arrestAt);
+    final deadline = SgpMedicalCustodyTimeline.compute(
+      session: session,
+      requiresGuard: route.type.requiresGuard,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _medicalTransferRoute = route;
+      _medicalTransferSession = session;
+      _medicalTransferDeadline = deadline;
+      _medicalTransferDismissed = false;
+      _civilComplaintRoute = null;
+    });
   }
 
   void _refreshCivilComplaintRoute() {
@@ -325,7 +384,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       graph: graph,
     );
     if (!mounted) return;
-    if (route != null && route.isHighConfidence) {
+    if (route != null && route.isHighConfidence && !route.type.isMedicalTransferGuide) {
       setState(() {
         _civilComplaintRoute = route;
         _civilComplaintDismissed = false;
@@ -379,6 +438,115 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openMedicalTransferSheet() async {
+    final pack = _civilComplaintPack;
+    if (pack == null) {
+      _showSnack('민원·의료 노드 로드 중…');
+      return;
+    }
+
+    final branch = await showModalBottomSheet<MedTransferBranch>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: SgpCivilGuideColors.deepNight,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                '🚑 응급이송 및 사법확보 분기',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: SgpCivilGuideColors.pureWhite,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.gavel, color: Color(0xFFFF5252)),
+                title: const Text(
+                  'A. 현행범·긴급체포 후 이송',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: SgpCivilGuideColors.pureWhite,
+                  ),
+                ),
+                subtitle: const Text(
+                  '48h 시한 카운트다운 · 2인 1조 계호',
+                  style: TextStyle(color: SgpCivilGuideColors.neonCyan),
+                ),
+                onTap: () => Navigator.pop(ctx, MedTransferBranch.arrestAfter),
+              ),
+              ListTile(
+                leading: const Icon(Icons.volunteer_activism, color: SgpCivilGuideColors.emerald),
+                title: const Text(
+                  'B. 임의동행·병원 선 이송',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: SgpCivilGuideColors.pureWhite,
+                  ),
+                ),
+                subtitle: const Text(
+                  '행정관리 모드 · 치료 완료 예정 시각 입력',
+                  style: TextStyle(color: SgpCivilGuideColors.emerald),
+                ),
+                onTap: () => Navigator.pop(ctx, MedTransferBranch.voluntaryFirst),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (branch == null || !mounted) return;
+
+    final typeId = branch == MedTransferBranch.arrestAfter
+        ? 'CC-TYPE-MED-TRANSFER-ARREST'
+        : 'CC-TYPE-MED-TRANSFER-VOLUNTARY';
+    final type = pack.types.firstWhere((t) => t.id == typeId);
+    final graph = SgpLegalOntologySession.instance.graph;
+    final tripleCount = graph == null
+        ? 0
+        : graph
+            .query(subjectId: typeId)
+            .where(
+              (t) =>
+                  t.predicate == LegalPredicate.hasJurisdiction ||
+                  t.predicate == LegalPredicate.requiresDocument ||
+                  t.predicate == LegalPredicate.freezesTimeline ||
+                  t.predicate == LegalPredicate.requiresGuard,
+            )
+            .length;
+
+    final arrestAt = _procedureTimeline?.t0 ?? DateTime.now();
+    final session = SgpMedicalTransferSession(
+      branch: branch,
+      arrestAt: arrestAt,
+      status: MedTransferStatus.inTransit,
+      injuryDescription: '응급 외상',
+    );
+    final deadline = SgpMedicalCustodyTimeline.compute(
+      session: session,
+      requiresGuard: type.requiresGuard,
+    );
+
+    setState(() {
+      _medicalTransferRoute = CivilComplaintRouteResult(
+        type: type,
+        matchedKeywords: const ['manual'],
+        confidence: 1.0,
+        ontologyTripleCount: tripleCount,
+      );
+      _medicalTransferSession = session;
+      _medicalTransferDeadline = deadline;
+      _medicalTransferDismissed = false;
+      _civilComplaintRoute = null;
+    });
+    _showSnack('응급 이송·신병 확보 모드 활성화 (${branch.displayLabel})');
   }
 
   void _openCivilComplaintGuideScreen() {
@@ -825,6 +993,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       advancedAnalysis: _advancedAnalysis,
       timeline: _procedureTimeline,
       quantumComparison: _quantumComparison,
+      medicalTransferSession: _medicalTransferSession,
     );
     final report = SgpReportGenerator.generate(input);
     await showLegalReportDialog(context, report: report);
@@ -1290,7 +1459,34 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                     onForceTierChanged: _onForceTierChanged,
                     flashExcessive: _forceFlashExcessive,
                   ),
-                  if (_civilComplaintRoute != null) ...[
+                  if (_medicalTransferRoute != null &&
+                      _medicalTransferSession != null &&
+                      _medicalTransferDeadline != null) ...[
+                    const SizedBox(height: 12),
+                    SgpMedicalTransferGuidePanel(
+                      route: _medicalTransferRoute!,
+                      session: _medicalTransferSession!,
+                      deadline: _medicalTransferDeadline!,
+                      onDismiss: () => setState(() {
+                        _medicalTransferRoute = null;
+                        _medicalTransferSession = null;
+                        _medicalTransferDeadline = null;
+                        _medicalTransferDismissed = true;
+                      }),
+                      onExpectedDischargeChanged: (dt) {
+                        if (dt == null || _medicalTransferSession == null) return;
+                        final session =
+                            _medicalTransferSession!.copyWith(expectedDischargeAt: dt);
+                        setState(() {
+                          _medicalTransferSession = session;
+                          _medicalTransferDeadline = SgpMedicalCustodyTimeline.compute(
+                            session: session,
+                            requiresGuard: _medicalTransferRoute!.type.requiresGuard,
+                          );
+                        });
+                      },
+                    ),
+                  ] else if (_civilComplaintRoute != null) ...[
                     const SizedBox(height: 12),
                     SgpCivilComplaintGuidePanel(
                       route: _civilComplaintRoute!,
@@ -2272,6 +2468,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              SgpMedicalTransferThumbButton(
+                active: _medicalTransferRoute != null,
+                onPressed: _openMedicalTransferSheet,
               ),
               const SizedBox(height: 8),
               GestureDetector(

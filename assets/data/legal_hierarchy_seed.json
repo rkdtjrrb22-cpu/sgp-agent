@@ -466,5 +466,29 @@
     "title": "이웃사이센터(주민센터)",
     "parent_id": "CC-ROOT-POLICE-COMPLAINT",
     "domain_tags": ["civil_complaint", "agency", "transfer"]
+  },
+  {
+    "id": "MED-TRANSFER",
+    "level": 8,
+    "title": "응급환자 이송(MED-TRANSFER)",
+    "parent_id": "CC-CAT-CRIMINAL",
+    "domain_tags": ["medical_custody", "emergency", "hospital_transfer"],
+    "summary": "가·피해자 분리 중 응급환자 발생 시 병원 이송 절차"
+  },
+  {
+    "id": "CUSTODY-MGMT",
+    "level": 8,
+    "title": "치료 중 신병확보(CUSTODY-MGMT)",
+    "parent_id": "MED-TRANSFER",
+    "domain_tags": ["medical_custody", "custody", "hospital"],
+    "summary": "응급실·입원실 치료 단계별 신병 확보 행정지도"
+  },
+  {
+    "id": "POLICE-GUARD",
+    "level": 8,
+    "title": "도주 방지 수배계(POLICE-GUARD)",
+    "parent_id": "CUSTODY-MGMT",
+    "domain_tags": ["medical_custody", "guard", "two_officer"],
+    "summary": "2인 1조 교대 계호·도주 방지 배치"
   }
 ]

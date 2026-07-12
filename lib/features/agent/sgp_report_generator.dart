@@ -8,6 +8,7 @@ import 'sgp_precedent_dictionary.dart';
 import 'sgp_procedure_timeline.dart';
 import 'sgp_quantum_legal_engine.dart';
 import 'sgp_official_document_drafts.dart';
+import 'sgp_medical_custody_engine.dart';
 
 /// 보고서 생성에 필요한 현장 세션 데이터.
 class SgpReportInput {
@@ -18,6 +19,7 @@ class SgpReportInput {
     this.advancedAnalysis,
     this.timeline,
     this.quantumComparison,
+    this.medicalTransferSession,
   });
 
   final String rawText;
@@ -26,6 +28,7 @@ class SgpReportInput {
   final SgpAdvancedAnalysis? advancedAnalysis;
   final SgpProcedureTimeline? timeline;
   final SgpQuantumLegalComparison? quantumComparison;
+  final SgpMedicalTransferSession? medicalTransferSession;
 
   /// 저장 기록·파이프라인 JSON에서 복원.
   factory SgpReportInput.fromSessionJson(Map<String, dynamic> json) {
@@ -355,17 +358,27 @@ class SgpReportGenerator {
 
   static List<String> _buildCustodyHandover(SgpReportInput input) {
     final t = input.timeline;
-    if (t == null) return ['- 신병 인계: (타임라인 데이터 없음)'];
-
-    final node = _findNode(t, 'custody_handover_prep');
-    final lines = <String>[
-      '- **인계 준비 시한**: ${node?.offsetLabel ?? 'T-0 후 2시간 이내'}',
-    ];
-    if (node != null) {
-      lines.add('- **마감 시각**: ${_fmtDateTime(node.deadline)}');
-      for (final c in node.checkItems) {
-        lines.add('- [${c.checked ? '✓' : ' '}] ${c.label}');
+    final lines = <String>[];
+    if (t == null) {
+      lines.add('- 신병 인계: (타임라인 데이터 없음)');
+    } else {
+      final node = _findNode(t, 'custody_handover_prep');
+      lines.add('- **인계 준비 시한**: ${node?.offsetLabel ?? 'T-0 후 2시간 이내'}');
+      if (node != null) {
+        lines.add('- **마감 시각**: ${_fmtDateTime(node.deadline)}');
+        for (final c in node.checkItems) {
+          lines.add('- [${c.checked ? '✓' : ' '}] ${c.label}');
+        }
       }
+    }
+
+    final med = input.medicalTransferSession;
+    if (med != null) {
+      final deadline = SgpMedicalCustodyTimeline.compute(session: med);
+      lines.add('- **병원 이송 및 신병 확보 상황 보고**:');
+      lines.add(
+        '  ${SgpMedicalCustodyTimeline.buildSituationReportParagraph(session: med, deadline: deadline)}',
+      );
     }
     return lines;
   }

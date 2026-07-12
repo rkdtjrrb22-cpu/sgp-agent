@@ -54,6 +54,53 @@ abstract final class SgpCivilComplaintRouter {
           source: 'civil_complaint_seed',
         ),
       );
+
+      if (type.isMedicalTransferGuide) {
+        add(
+          LegalOntologyTriple(
+            subjectId: type.id,
+            predicate: LegalPredicate.appliesToDomain,
+            objectValue: 'medical_custody_transfer',
+            source: 'civil_complaint_seed',
+          ),
+        );
+        add(
+          LegalOntologyTriple(
+            subjectId: type.id,
+            predicate: LegalPredicate.freezesTimeline,
+            objectValue: type.freezesTimeline.toString(),
+            source: 'civil_complaint_seed',
+            metadata: {'branch': type.medTransferBranch ?? ''},
+          ),
+        );
+        add(
+          LegalOntologyTriple(
+            subjectId: type.id,
+            predicate: LegalPredicate.requiresGuard,
+            objectValue: type.requiresGuard.toString(),
+            source: 'civil_complaint_seed',
+            metadata: {'object_node': 'POLICE-GUARD'},
+          ),
+        );
+        add(
+          LegalOntologyTriple(
+            subjectId: type.id,
+            predicate: LegalPredicate.hasJurisdiction,
+            objectId: 'MED-TRANSFER',
+            objectValue: 'emergency_hospital_transfer',
+            source: 'civil_complaint_seed',
+          ),
+        );
+        add(
+          LegalOntologyTriple(
+            subjectId: type.id,
+            predicate: LegalPredicate.hasJurisdiction,
+            objectId: 'CUSTODY-MGMT',
+            objectValue: 'hospital_custody',
+            source: 'civil_complaint_seed',
+          ),
+        );
+      }
     }
 
     return triples;
