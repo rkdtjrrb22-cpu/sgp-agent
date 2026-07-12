@@ -255,7 +255,7 @@ dart run bin/quantum_legal_server.dart
 tools\flutter-direct.cmd build apk --debug
 ```
 
-### Master Plan 2/3 (2026-07-12, 미커밋)
+### Master Plan 2/3 (2026-07-12) — `9ed2363`
 - iOS 타깃·Podfile·Info.plist·검증 스크립트
 - JWKS RS256 (`sgp_npa_iam_jwks.dart`) + IAM 클라이언트
 - Docker compose 리소스·헬스체크·법제처 Cron 재시도
