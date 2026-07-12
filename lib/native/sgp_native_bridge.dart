@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/services.dart';
 
+import '../features/agent/sgp_secure_cache_crypto.dart';
+
 /// 네이티브 엔진 상태.
 class SgpNativeCapabilities {
   const SgpNativeCapabilities({
@@ -54,6 +56,28 @@ class SgpSllmInferenceResult {
     return SgpSllmInferenceResult(
       text: map['text'] as String?,
       useFallback: map['useFallback'] != false,
+    );
+  }
+}
+
+class SgpNativeSttResult {
+  const SgpNativeSttResult({
+    required this.available,
+    this.text,
+    this.error,
+  });
+
+  final bool available;
+  final String? text;
+  final String? error;
+
+  bool get hasTranscript => text != null && text!.trim().isNotEmpty;
+
+  factory SgpNativeSttResult.fromMap(Map<dynamic, dynamic> map) {
+    return SgpNativeSttResult(
+      available: map['available'] == true,
+      text: map['text'] as String?,
+      error: map['error'] as String?,
     );
   }
 }
@@ -124,5 +148,91 @@ class SgpNativeBridge {
     } on MissingPluginException {
       return false;
     }
+  }
+
+  /// USB/Bluetooth 무전 입력 장치를 통화용 오디오 경로로 우선 지정.
+  static Future<bool> activateRadioAudioRoute() async {
+    try {
+      return await _channel.invokeMethod<bool>('activateRadioAudioRoute') == true;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  /// whisper.cpp JNI 바인딩이 있을 때 PCM 캡처→한국어 전사를 수행한다.
+  static Future<SgpNativeSttResult> transcribeWhisper({
+    Duration timeout = const Duration(seconds: 25),
+    String locale = 'ko',
+  }) async {
+    try {
+      final map = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'transcribeWhisper',
+        <String, dynamic>{
+          'timeoutMs': timeout.inMilliseconds,
+          'locale': locale,
+        },
+      );
+      if (map == null) {
+        return const SgpNativeSttResult(
+          available: false,
+          error: 'Whisper 응답이 없습니다.',
+        );
+      }
+      return SgpNativeSttResult.fromMap(map);
+    } on MissingPluginException {
+      return const SgpNativeSttResult(
+        available: false,
+        error: 'Whisper 네이티브 플러그인이 없습니다.',
+      );
+    }
+  }
+
+  /// Android Keystore 비내보내기 키로 AES-256-GCM 암호화.
+  static Future<String> encryptCachePayload(String plainText) async {
+    try {
+      final value = await _channel.invokeMethod<String>(
+        'encryptCachePayload',
+        <String, dynamic>{'plainText': plainText},
+      );
+      if (value == null || value.isEmpty) {
+        throw StateError('네이티브 암호화 결과가 비어 있습니다.');
+      }
+      return value;
+    } on MissingPluginException {
+      throw UnsupportedError('이 플랫폼에는 보안 캐시 키 저장소가 없습니다.');
+    }
+  }
+
+  /// Android Keystore 키로 AES-256-GCM 봉투 복호화.
+  static Future<String> decryptCachePayload(String envelopeJson) async {
+    try {
+      final value = await _channel.invokeMethod<String>(
+        'decryptCachePayload',
+        <String, dynamic>{'envelopeJson': envelopeJson},
+      );
+      if (value == null) {
+        throw StateError('네이티브 복호화 결과가 없습니다.');
+      }
+      return value;
+    } on MissingPluginException {
+      throw UnsupportedError('이 플랫폼에는 보안 캐시 키 저장소가 없습니다.');
+    }
+  }
+
+  /// 운영 저장소용 암복호화 어댑터.
+  static SgpCacheCipher get cacheCipher => const _SgpNativeCacheCipher();
+}
+
+class _SgpNativeCacheCipher implements SgpCacheCipher {
+  const _SgpNativeCacheCipher();
+
+  @override
+  Future<String> encrypt(String plainText) {
+    return SgpNativeBridge.encryptCachePayload(plainText);
+  }
+
+  @override
+  Future<String> decrypt(String envelopeJson) {
+    return SgpNativeBridge.decryptCachePayload(envelopeJson);
   }
 }

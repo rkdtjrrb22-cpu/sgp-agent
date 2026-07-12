@@ -37,6 +37,7 @@ import 'sgp_main_user_interface.dart';
 import 'sgp_app_theme.dart';
 import 'sgp_voice_legal_binder.dart';
 import 'sgp_legal_compliance.dart';
+import '../../native/sgp_native_bridge.dart';
 
 /// SgpAgentHome — 수사관 진입점. 진입 시 sLLM Lazy Load, 이탈 시 dispose.
 class SgpAgentHome extends StatelessWidget {
@@ -103,6 +104,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   @override
   void initState() {
     super.initState();
+    configureAgentStorageCipher(SgpNativeBridge.cacheCipher);
     _rawTextController.addListener(_onRawTextChanged);
     _sttFocusNode.addListener(_onSttFocusChanged);
     _initEngine();
@@ -898,7 +900,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
 
     try {
       final file = await saveAgentRecord(record);
-      final summary = SavedRecordSummary.fromFile(file);
+      final summary = await SavedRecordSummary.fromFile(file);
 
       await _refreshSavedRecords();
 

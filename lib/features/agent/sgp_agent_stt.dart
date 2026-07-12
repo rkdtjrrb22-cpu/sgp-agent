@@ -50,6 +50,7 @@ class SgpSttEngine {
   SttSessionState _state = SttSessionState.idle;
   bool _modelReady = false;
   bool _hardwareReady = false;
+  bool _platformSpeechReady = false;
   bool _usbAudioDetected = false;
   bool _bluetoothScoActive = false;
   bool _whisperBound = false;
@@ -88,14 +89,26 @@ class SgpSttEngine {
       }
     }
 
+    if (!kIsWeb && Platform.isAndroid && _bluetoothScoActive) {
+      final bluetooth = await Permission.bluetoothConnect.request();
+      if (!bluetooth.isGranted) {
+        _lastError = 'Bluetooth 무전 입력 권한이 없어 단말 마이크로 전환합니다.';
+        _bluetoothScoActive = false;
+      }
+    }
+    if (_usbAudioDetected || _bluetoothScoActive) {
+      await SgpNativeBridge.activateRadioAudioRoute();
+    }
+
     final available = await _speech.initialize(
       onError: (e) => _lastError = e.errorMsg,
       onStatus: (_) {},
     );
 
-    _modelReady = available;
-    _hardwareReady = available;
-    _lastError = available ? null : '이 단말에서 음성 인식을 사용할 수 없습니다.';
+    _platformSpeechReady = available;
+    _modelReady = _whisperBound || available;
+    _hardwareReady = _modelReady;
+    _lastError = _modelReady ? null : '이 단말에서 음성 인식을 사용할 수 없습니다.';
   }
 
   void dispose() {
@@ -103,6 +116,7 @@ class SgpSttEngine {
     _speech.cancel();
     _modelReady = false;
     _hardwareReady = false;
+    _platformSpeechReady = false;
     _state = SttSessionState.idle;
   }
 
@@ -119,7 +133,12 @@ class SgpSttEngine {
     }
 
     if (_whisperBound) {
-      return _transcribeWhisperNative(listenTimeout);
+      try {
+        return await _transcribeWhisperNative(listenTimeout);
+      } catch (error) {
+        _lastError = 'Whisper 폴백: $error';
+        if (!_platformSpeechReady) rethrow;
+      }
     }
 
     _state = SttSessionState.listening;
@@ -155,12 +174,15 @@ class SgpSttEngine {
           }
         }
       },
-      localeId: localeId,
-      listenMode: ListenMode.dictation,
-      pauseFor: const Duration(seconds: 3),
-      listenFor: listenTimeout,
-      partialResults: true,
-      cancelOnError: true,
+      listenOptions: SpeechListenOptions(
+        localeId: localeId,
+        listenMode: ListenMode.dictation,
+        pauseFor: const Duration(seconds: 3),
+        listenFor: listenTimeout,
+        partialResults: true,
+        cancelOnError: true,
+        onDevice: true,
+      ),
     );
 
     if (!started) {
@@ -196,8 +218,22 @@ class SgpSttEngine {
   }
 
   Future<SttTranscriptResult> _transcribeWhisperNative(Duration timeout) async {
-    // TODO: PCM 스트림 → Whisper JNI
-    throw StateError('Whisper 네이티브 엔진 연동 준비 중입니다.');
+    _state = SttSessionState.listening;
+    try {
+      final result = await SgpNativeBridge.transcribeWhisper(timeout: timeout);
+      _state = SttSessionState.processing;
+      if (!result.available || !result.hasTranscript) {
+        throw StateError(result.error ?? 'Whisper 전사 결과가 없습니다.');
+      }
+      return SttTranscriptResult(
+        text: result.text!.trim(),
+        isFinal: true,
+        offline: true,
+        source: SttInputSource.whisperNative,
+      );
+    } finally {
+      _state = SttSessionState.idle;
+    }
   }
 }
 

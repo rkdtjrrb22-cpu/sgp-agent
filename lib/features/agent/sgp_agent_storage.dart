@@ -1,4 +1,4 @@
-/// SGP-Agent 로컬 JSON 저장·조회.
+/// SGP-Agent 로컬 저장·조회 (AES-256-GCM + Android Keystore).
 library;
 
 import 'dart:convert';
@@ -6,59 +6,29 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../native/sgp_native_bridge.dart';
 import 'sgp_agent_core.dart';
+import 'sgp_agent_storage_io.dart';
+import 'sgp_secure_cache_crypto.dart';
 
-const kRecordFilePrefix = 'sgp_agent_';
+export 'sgp_agent_storage_io.dart'
+    show
+        SavedRecordSummary,
+        formatRecordTimestamp,
+        kLegacyRecordExtension,
+        kRecordFilePrefix,
+        migrateLegacyAgentRecords,
+        sampleRecordJson;
 
-/// 저장된 조서 파일 요약.
-class SavedRecordSummary {
-  const SavedRecordSummary({
-    required this.id,
-    required this.filePath,
-    required this.fileName,
-    required this.createdAt,
-    required this.rawTextPreview,
-    required this.selfJudgmentConfirmed,
-  });
+SgpCacheCipher? _configuredCipher;
 
-  final String id;
-  final String filePath;
-  final String fileName;
-  final DateTime createdAt;
-  final String rawTextPreview;
-  final bool selfJudgmentConfirmed;
+/// 앱 시작 시 Android Keystore 기반 암복호화 어댑터를 등록한다.
+void configureAgentStorageCipher(SgpCacheCipher cipher) {
+  _configuredCipher = cipher;
+}
 
-  /// adb/파일 관리자용 짧은 경로 표시.
-  String get displayPath => filePath.replaceFirst('/data/user/0/', '');
-
-  static SavedRecordSummary fromFile(File file) {
-    final name = file.uri.pathSegments.last;
-    final id = name.replaceFirst(kRecordFilePrefix, '').replaceFirst('.json', '');
-
-    DateTime createdAt = file.lastModifiedSync();
-    var preview = '';
-    var confirmed = false;
-
-    try {
-      final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
-      createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          createdAt;
-      final raw = json['rawText'] as String? ?? '';
-      preview = raw.length > 48 ? '${raw.substring(0, 48)}…' : raw;
-      confirmed = json['selfJudgmentConfirmed'] as bool? ?? false;
-    } catch (_) {
-      preview = '(파일 읽기 오류)';
-    }
-
-    return SavedRecordSummary(
-      id: id,
-      filePath: file.path,
-      fileName: name,
-      createdAt: createdAt,
-      rawTextPreview: preview,
-      selfJudgmentConfirmed: confirmed,
-    );
-  }
+SgpCacheCipher _cipher([SgpCacheCipher? override]) {
+  return override ?? _configuredCipher ?? SgpNativeBridge.cacheCipher;
 }
 
 Future<Directory> getAgentStorageDirectory() async {
@@ -70,32 +40,45 @@ Future<String> getAgentStoragePathLabel() async {
   return dir.path.replaceFirst('/data/user/0/', '');
 }
 
-Future<File> saveAgentRecord(AgentRecord record) async {
-  final dir = await getAgentStorageDirectory();
-  final file = File('${dir.path}/$kRecordFilePrefix${record.id}.json');
-  await file.writeAsString(jsonEncode(record.toJson()));
-  return file;
+Future<File> saveAgentRecord(
+  AgentRecord record, {
+  Directory? directory,
+  SgpCacheCipher? cipher,
+}) async {
+  final dir = directory ?? await getAgentStorageDirectory();
+  return saveAgentRecordJsonEncrypted(
+    recordJson: record.toJson(),
+    directory: dir,
+    cipher: _cipher(cipher),
+  );
 }
 
-Future<List<SavedRecordSummary>> listSavedRecords() async {
-  final dir = await getAgentStorageDirectory();
-  if (!dir.existsSync()) return [];
-
-  final files = dir
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.json') && f.path.contains(kRecordFilePrefix))
-      .toList()
-    ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-
-  return files.map(SavedRecordSummary.fromFile).toList();
+Future<List<SavedRecordSummary>> listSavedRecords({
+  Directory? directory,
+  SgpCacheCipher? cipher,
+  bool migrateLegacy = true,
+}) async {
+  final dir = directory ?? await getAgentStorageDirectory();
+  return listSavedRecordsEncrypted(
+    directory: dir,
+    cipher: _cipher(cipher),
+    migrateLegacy: migrateLegacy,
+  );
 }
 
-Future<AgentRecord?> loadAgentRecord(String filePath) async {
-  final file = File(filePath);
-  if (!file.existsSync()) return null;
+Future<AgentRecord?> loadAgentRecord(
+  String filePath, {
+  SgpCacheCipher? cipher,
+}) async {
+  final json = await loadAgentRecordJsonEncrypted(
+    filePath: filePath,
+    cipher: _cipher(cipher),
+  );
+  if (json == null) return null;
+  return _agentRecordFromJson(json);
+}
 
-  final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+AgentRecord _agentRecordFromJson(Map<String, dynamic> json) {
   return AgentRecord(
     id: json['id'] as String,
     createdAt: DateTime.parse(json['createdAt'] as String),
@@ -118,35 +101,14 @@ Future<AgentRecord?> loadAgentRecord(String filePath) async {
   );
 }
 
-/// 단일 JSON 조서 파일 삭제. 성공 시 true.
-Future<bool> deleteAgentRecord(String filePath) async {
-  final file = File(filePath);
-  if (!file.existsSync()) return false;
-  await file.delete();
-  return true;
+Future<bool> deleteAgentRecord(String filePath) {
+  return deleteAgentRecordFile(filePath);
 }
 
-/// 모든 sgp_agent_*.json 기록 삭제. 삭제된 건수 반환.
 Future<int> deleteAllAgentRecords() async {
   final dir = await getAgentStorageDirectory();
-  if (!dir.existsSync()) return 0;
-
-  var count = 0;
-  for (final entity in dir.listSync()) {
-    if (entity is! File) continue;
-    if (!entity.path.endsWith('.json')) continue;
-    if (!entity.path.contains(kRecordFilePrefix)) continue;
-    await entity.delete();
-    count++;
-  }
-  return count;
+  return deleteAllAgentRecordFiles(dir);
 }
 
-String formatRecordTimestamp(DateTime dt) {
-  final local = dt.toLocal();
-  final h = local.hour.toString().padLeft(2, '0');
-  final m = local.minute.toString().padLeft(2, '0');
-  final s = local.second.toString().padLeft(2, '0');
-  return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')} $h:$m:$s';
-}
+/// 테스트·디버그용 — JSON 직렬화 검증.
+String encodeAgentRecordJson(AgentRecord record) => jsonEncode(record.toJson());
