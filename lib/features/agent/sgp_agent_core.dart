@@ -1,7 +1,19 @@
+/**
+ * ============================================================================
+ * PROJECT      : Smart Green Policing Platform (SGP-Agent)
+ * MODULE       : Glymphatic Self-Healing Context Purification Engine
+ * ARCHITECT    : Inspector KANG, S.G. (41st Riot Police Squadron, KNPA)
+ *              : [20-Year Veteran Public Order & Security Operations Commander]
+ * PATENT NO    : KR 10-2026-0128052 (Asynchronous Context Flush Mechanism)
+ * COPYRIGHT    : Copyright 2026. KANG S.G. & SGP Project Team. All Rights Reserved.
+ * SIGNATURE    : 4066 (Eternal Guardian)
+ * ============================================================================
+ */
 /// SGP-Agent 코어 엔진 — 온디바이스 수사 조서 정형화 및 sLLM 오케스트레이션.
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 export 'sgp_agent_law_filters.dart';
 export 'sgp_agent_prompts.dart';
@@ -9,7 +21,13 @@ export 'sgp_agent_prompts.dart';
 import 'sgp_agent_law_filters.dart';
 import 'sgp_agent_prompts.dart';
 import 'sgp_precedent_dictionary.dart';
+import 'sgp_legal_ontology_session.dart';
 
+import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_agent_node.dart';
+import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_flusher.dart';
+import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_handshake.dart';
+import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_innovation_engine.dart';
+import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_monitor.dart';
 import 'package:sgp_agent/native/sgp_native_bridge.dart';
 
 part 'sgp_agent_advanced.dart';
@@ -377,6 +395,34 @@ String buildCaseRecordDraft({
 // sLLM Lazy Loading 엔진 (7B~9B 4-bit 양자화 연동 지점)
 // ---------------------------------------------------------------------------
 
+/// 글림파틱 3대 트리거 지표 스냅샷 (특허 10-2026-0128052).
+class GlymphaticEngineSnapshot {
+  const GlymphaticEngineSnapshot({
+    required this.semanticEntropy,
+    required this.contextSaturationRatio,
+    required this.inferenceLatencyMs,
+    required this.ontologyDeviationExceeded,
+    required this.contextSaturationExceeded,
+    required this.latencyExceeded,
+  });
+
+  /// 온톨로지 이탈도 — 코사인 거리 기반 시맨틱 엔트로피.
+  final double semanticEntropy;
+
+  /// 현재 세션 토큰 / 최대 Window 비율.
+  final double contextSaturationRatio;
+
+  /// 최근 추론 응답 지연(ms).
+  final double inferenceLatencyMs;
+
+  final bool ontologyDeviationExceeded;
+  final bool contextSaturationExceeded;
+  final bool latencyExceeded;
+
+  bool get shouldFlush =>
+      ontologyDeviationExceeded || contextSaturationExceeded || latencyExceeded;
+}
+
 /// 추론 벤치마크 결과.
 class InferenceBenchmarkResult {
   const InferenceBenchmarkResult({
@@ -407,7 +453,241 @@ class SgpAgentEngine {
   List<int>? _modelWeights;
   bool _isLoaded = false;
 
+  /// 글림파틱 감시 — 특허 임계치 상수.
+  static const glymphaticSemanticThreshold = 0.65;
+  static const glymphaticContextRatioThreshold = 0.75;
+  static const glymphaticLatencyThresholdMs = 3500.0;
+  static const glymphaticMonitorInterval = Duration(seconds: 1);
+  static const glymphaticMaxWindowTokens = 8192;
+
+  final SgpGlymphaticAgentNode _glymphaticMain = SgpGlymphaticAgentNode(
+    nodeId: 'engine-main',
+    maxWindowTokens: glymphaticMaxWindowTokens,
+  );
+  final SgpGlymphaticAgentNode _glymphaticShadow = SgpGlymphaticAgentNode(
+    nodeId: 'engine-shadow',
+    maxWindowTokens: glymphaticMaxWindowTokens,
+  );
+  late SgpGlymphaticAgentNode _glymphaticActive;
+  late SgpGlymphaticAgentNode _glymphaticStandby;
+  final List<String> _glymphaticPendingTraffic = [];
+  Timer? _glymphaticMonitorTimer;
+  bool _glymphaticFlushInFlight = false;
+  GlymphaticHandshakeResult? _lastGlymphaticHandshake;
+  GlymphaticReadyStateReport? _lastGlymphaticReadyReport;
+  void Function(GlymphaticEngineSnapshot snapshot)? _onGlymphaticThreshold;
+  void Function(GlymphaticEngineSnapshot snapshot)? _onGlymphaticMonitorTick;
+  Future<void> Function(GlymphaticEngineSnapshot snapshot)? glymphaticFlushDelegate;
+
+  SgpAgentEngine() {
+    _glymphaticMain.activate();
+    _glymphaticShadow.markReadyForSwap();
+    _glymphaticActive = _glymphaticMain;
+    _glymphaticStandby = _glymphaticShadow;
+  }
+
+  SgpGlymphaticAgentNode get glymphaticActiveNode => _glymphaticActive;
+  SgpGlymphaticAgentNode get glymphaticStandbyNode => _glymphaticStandby;
+  GlymphaticHandshakeResult? get lastGlymphaticHandshake => _lastGlymphaticHandshake;
+  GlymphaticReadyStateReport? get lastGlymphaticReadyReport => _lastGlymphaticReadyReport;
+  bool get isGlymphaticReadyForSwap => _glymphaticStandby.readyForSwap;
+
+  SgpGlymphaticAgentNode get _glymphaticProbe => _glymphaticActive;
+
   bool get isLoaded => _isLoaded;
+  bool get isGlymphaticMonitorRunning => _glymphaticMonitorTimer != null;
+  bool get isGlymphaticFlushInFlight => _glymphaticFlushInFlight;
+
+  /// 온톨로지 이탈도(시맨틱 엔트로피). 임계치 0.65 초과 시 트리거 A.
+  double getSemanticEntropy({List<String>? ontologyAnchors}) =>
+      _glymphaticProbe.semanticDeviation(
+        ontologyAnchors ?? _ontologyAnchors(),
+      );
+
+  /// 콘텍스트 토큰 포화도 (0.0~1.0). 임계치 0.75 초과 시 트리거 B.
+  double getContextTokenSaturation() => _glymphaticProbe.tokenRatio;
+
+  /// 평균 추론 지연(ms). 임계치 3500ms 초과 시 트리거 C.
+  double getInferenceLatencyMs() => _glymphaticProbe.getCurrentLatencyMs();
+
+  /// 3대 지표를 한 번에 샘플링 (CrossModal + Adaptive 임계치 연동).
+  GlymphaticEngineSnapshot sampleGlymphaticTriggers({List<String>? ontologyAnchors}) {
+    final anchors = ontologyAnchors ?? _ontologyAnchors();
+    final crossModal = CrossModalEntropySanitizer.sanitizeNode(
+      _glymphaticProbe,
+      anchors,
+    );
+    final entropy = math.max(
+      getSemanticEntropy(ontologyAnchors: anchors),
+      crossModal,
+    );
+    final ratio = getContextTokenSaturation();
+    final latency = getInferenceLatencyMs();
+    final semanticCutoff = AdaptiveThresholdEngine.semanticThreshold(
+      contextRatio: ratio,
+      latencyMs: latency,
+    );
+    final contextCutoff = AdaptiveThresholdEngine.contextThreshold(
+      latencyMs: latency,
+      semanticPressure: entropy,
+    );
+    return GlymphaticEngineSnapshot(
+      semanticEntropy: entropy,
+      contextSaturationRatio: ratio,
+      inferenceLatencyMs: latency,
+      ontologyDeviationExceeded: entropy > semanticCutoff,
+      contextSaturationExceeded: ratio > contextCutoff,
+      latencyExceeded: latency > glymphaticLatencyThresholdMs,
+    );
+  }
+
+  /// 임계치 초과 여부 — 제어 루프 진입 조건.
+  bool get shouldTriggerGlymphaticFlush => sampleGlymphaticTriggers().shouldFlush;
+
+  List<String> _ontologyAnchors() {
+    final graph = SgpLegalOntologySession.instance.graph;
+    if (graph == null || graph.nodes.isEmpty) {
+      return const [
+        '형사소송법',
+        '정당방위',
+        '현장 수사',
+        '증거 보전',
+        '체포 절차',
+      ];
+    }
+    return graph.nodes
+        .take(64)
+        .map((n) => '${n.id} ${n.title}')
+        .toList(growable: false);
+  }
+
+  /// 현장 입력을 글림파틱 프로브에 기록 (UI 게이지·컨트롤러 동기화).
+  void ingestGlymphaticTraffic(String payload) {
+    _recordGlymphaticContext(payload);
+  }
+
+  void _recordGlymphaticContext(String text, {String? ontologyNodeId}) {
+    if (text.trim().isEmpty) return;
+    if (_glymphaticActive.isThrottled && !_glymphaticStandby.isThrottled) {
+      _glymphaticStandby.appendContext(text, ontologyNodeId: ontologyNodeId);
+      _glymphaticPendingTraffic.add(text);
+      return;
+    }
+    _glymphaticActive.appendContext(text, ontologyNodeId: ontologyNodeId);
+  }
+
+  void _recordGlymphaticInference(String output, double latencyMs) {
+    _glymphaticProbe.recordOutput(output);
+    _glymphaticProbe.recordLatency(latencyMs);
+  }
+
+  List<GlymphaticTrigger> mapGlymphaticTriggers(GlymphaticEngineSnapshot snapshot) {
+    final triggers = <GlymphaticTrigger>[];
+    if (snapshot.ontologyDeviationExceeded) {
+      triggers.add(GlymphaticTrigger.semanticPollution);
+    }
+    if (snapshot.contextSaturationExceeded) {
+      triggers.add(GlymphaticTrigger.contextSaturation);
+    }
+    if (snapshot.latencyExceeded) {
+      triggers.add(GlymphaticTrigger.systemLatency);
+    }
+    return triggers;
+  }
+
+  /// 핑퐁 스왑 — Shadow가 현장 지령·온톨로지 세션을 무손실 이어받는다.
+  GlymphaticHandshakeResult pingPongSwapWithHandshaking() {
+    _glymphaticActive.throttle();
+
+    final graph = SgpLegalOntologySession.instance.graph;
+    if (graph != null) {
+      _glymphaticActive.inferOntologyLinks(graph);
+    }
+
+    final handshake = _glymphaticStandby.handoverFrom(
+      _glymphaticActive,
+      pendingPackets: List<String>.from(_glymphaticPendingTraffic),
+    );
+    _glymphaticPendingTraffic.clear();
+    _lastGlymphaticHandshake = handshake;
+
+    final oldActive = _glymphaticActive;
+    _glymphaticActive = _glymphaticStandby;
+    _glymphaticStandby = oldActive;
+
+    return handshake;
+  }
+
+  /// 인공 수면 모드 노드의 온톨로지 기반 Context Flush (백그라운드 Isolate).
+  Future<GlymphaticFlushReport> flushContextByOntology({
+    SgpGlymphaticAgentNode? target,
+  }) async {
+    final node = target ?? _glymphaticStandby;
+    final report = await SgpGlymphaticFlusher.flushContextByOntology(
+      target: node,
+      ontology: SgpLegalOntologySession.instance.graph,
+      ontologyAnchors: _ontologyAnchors(),
+    );
+    _lastGlymphaticReadyReport = report.readyState;
+    return report;
+  }
+
+  Future<void> _flushStandbyInBackground() async {
+    try {
+      await flushContextByOntology(target: _glymphaticStandby);
+    } catch (_) {
+      _glymphaticStandby.markReadyForSwap();
+    }
+  }
+
+  /// 글림파틱 정화 시퀀스 — delegate가 있으면 세션 컨트롤러에 위임, 없으면 엔진 내부 핑퐁.
+  Future<void> triggerGlymphaticFlush() async {
+    if (_glymphaticFlushInFlight) return;
+    _glymphaticFlushInFlight = true;
+    try {
+      final snapshot = sampleGlymphaticTriggers();
+      if (!snapshot.shouldFlush) return;
+
+      if (glymphaticFlushDelegate != null) {
+        await glymphaticFlushDelegate!(snapshot);
+        return;
+      }
+
+      final handshake = pingPongSwapWithHandshaking();
+      if (!handshake.confirmed) return;
+
+      unawaited(_flushStandbyInBackground());
+    } finally {
+      _glymphaticFlushInFlight = false;
+    }
+  }
+
+  /// 1초 주기 백그라운드 감시 루프 — 매 틱 UI 갱신, 임계치 초과 시 Flush.
+  Future<void> startGlymphaticMonitorLoop({
+    Duration interval = glymphaticMonitorInterval,
+    void Function(GlymphaticEngineSnapshot snapshot)? onThresholdExceeded,
+    void Function(GlymphaticEngineSnapshot snapshot)? onMonitorTick,
+  }) async {
+    _onGlymphaticThreshold = onThresholdExceeded;
+    _onGlymphaticMonitorTick = onMonitorTick;
+    stopGlymphaticMonitorLoop();
+    _glymphaticMonitorTimer = Timer.periodic(interval, (_) {
+      unawaited(_glymphaticMonitorTick());
+    });
+  }
+
+  void stopGlymphaticMonitorLoop() {
+    _glymphaticMonitorTimer?.cancel();
+    _glymphaticMonitorTimer = null;
+  }
+
+  Future<void> _glymphaticMonitorTick() async {
+    final snapshot = sampleGlymphaticTriggers();
+    _onGlymphaticMonitorTick?.call(snapshot);
+    if (!snapshot.shouldFlush) return;
+    _onGlymphaticThreshold?.call(snapshot);
+    await triggerGlymphaticFlush();
+  }
 
   /// 화면 진입 시 호출 — RAM에 모델 적재 (Lazy Loading).
   Future<void> loadModel() async {
@@ -418,8 +698,11 @@ class SgpAgentEngine {
 
   /// 화면 이탈 시 호출 — RAM 점유 즉시 해제.
   void dispose() {
+    stopGlymphaticMonitorLoop();
     _modelWeights = null;
     _isLoaded = false;
+    _glymphaticMain.clearContext();
+    _glymphaticShadow.clearContext();
   }
 
   /// 정형 프롬프트 기반 추론 (3단계 파이프라인).
@@ -442,6 +725,9 @@ class SgpAgentEngine {
       checklist: merged,
       ruleResult: ruleResult,
     );
+    _recordGlymphaticContext(rawText);
+    _recordGlymphaticContext(prompt);
+    final sw = Stopwatch()..start();
     final output = await _runInference(
       prompt,
       rawText: rawText,
@@ -449,6 +735,11 @@ class SgpAgentEngine {
       ruleResult: ruleResult,
       advanced: advanced,
     );
+    sw.stop();
+    _recordGlymphaticInference(output, sw.elapsedMilliseconds.toDouble());
+    if (shouldTriggerGlymphaticFlush) {
+      await triggerGlymphaticFlush();
+    }
     return InferencePipelineResult(
       ruleResult: ruleResult,
       mergedChecklist: merged,

@@ -26,7 +26,19 @@ class SgpLegalOntologySession {
 
   int get tripleCount => _graph?.triples.length ?? 0;
 
+  int get glymphaticNutrientCount => _glymphaticNutrientTriples.length;
+
+  List<LegalOntologyTriple> get glymphaticNutrientTriples =>
+      List.unmodifiable(_glymphaticNutrientTriples);
+
   String get source => _source;
+
+  final List<LegalOntologyTriple> _glymphaticNutrientTriples = [];
+
+  /// [아이디어 C] 글림파틱 정화 생존 파편 → KG 엣지 Back-Injection 수용.
+  void absorbGlymphaticNutrients(List<LegalOntologyTriple> triples) {
+    _glymphaticNutrientTriples.addAll(triples);
+  }
 
   /// 위계 레지스트리 로드 후 온톨로지 그래프·트리플 생성.
   void loadFromRegistry({SgpLegalHierarchyRegistry? registry}) {
@@ -84,6 +96,7 @@ class SgpLegalOntologySession {
   void reset() {
     _graph = null;
     _complaintPack = null;
+    _glymphaticNutrientTriples.clear();
     _source = 'uninitialized';
   }
 }

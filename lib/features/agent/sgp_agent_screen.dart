@@ -53,6 +53,8 @@ import '../investigation/screens/sgp_death_scene_router.dart';
 import '../control/sgp_custody_management.dart';
 import '../security/sgp_secure_crypto.dart';
 import 'sgp_vector_store.dart';
+import '../glymphatic/sgp_glymphatic_controller.dart';
+import '../glymphatic/widgets/sgp_glymphatic_dashboard.dart';
 import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
@@ -137,6 +139,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   bool _mockDefenseRunning = false;
   SgpDeathCaseDecision? _deathCaseDecision;
   CustodyManagementResult? _custodyResult;
+  final _glymphaticController = SgpGlymphaticSession.instance;
+  GlymphaticDashboardSnapshot? _glymphaticSnapshot;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -238,6 +242,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     final ota = SgpLegalHierarchyOta.instance.lastRefreshStatus;
     final triples = SgpLegalOntologySession.instance.tripleCount;
     final stub = SgpProductionStub.modeLabel;
+    _glymphaticController.attachOntology(SgpLegalOntologySession.instance.graph);
     setState(
       () => _hierarchyOtaStatus = '$ota · ontology:$triples · $stub',
     );
@@ -347,6 +352,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
 
   void _applyRuleMapping() {
     final text = _rawTextController.text;
+    if (text.trim().isNotEmpty) {
+      _glymphaticController.routeTraffic(text);
+      _engine.ingestGlymphaticTraffic(text);
+    }
     final rules = matchLawFilters(text);
     final voice = SgpVoiceLegalBinder.analyze(text);
     if (!mounted) return;
@@ -1107,9 +1116,41 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     }
   }
 
+  void _refreshGlymphaticDashboard() {
+    if (!mounted) return;
+    setState(() {
+      _glymphaticSnapshot = GlymphaticDashboardSnapshot.capture(
+        engine: _engine,
+        controller: _glymphaticController,
+      );
+    });
+  }
+
+  void _onGlymphaticMonitorTick(GlymphaticEngineSnapshot _) {
+    _refreshGlymphaticDashboard();
+  }
+
   Future<void> _initEngine() async {
     try {
       await _engine.loadModel();
+      _engine.glymphaticFlushDelegate = (snapshot) async {
+        _glymphaticController.attachOntology(SgpLegalOntologySession.instance.graph);
+        _glymphaticController.recordInference(
+          nodeId: _glymphaticController.activeNode.nodeId,
+          output: snapshot.semanticEntropy.toString(),
+          latencyMs: snapshot.inferenceLatencyMs,
+        );
+        await _glymphaticController.triggerSelfHealing(
+          triggers: _engine.mapGlymphaticTriggers(snapshot),
+        );
+        _refreshGlymphaticDashboard();
+      };
+      unawaited(
+        _engine.startGlymphaticMonitorLoop(
+          onMonitorTick: _onGlymphaticMonitorTick,
+        ),
+      );
+      _refreshGlymphaticDashboard();
       if (mounted) {
         setState(() {
           _modelLoading = false;
@@ -1137,6 +1178,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _sttFocusNode.dispose();
     _engine.dispose();
     _sttEngine.dispose();
+    _glymphaticController.dispose();
     super.dispose();
   }
 
@@ -1692,6 +1734,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
               onChanged: (mode) => setState(() => _operationalMode = mode),
             ),
             const SizedBox(height: 12),
+            if (_glymphaticSnapshot != null) ...[
+              SgpGlymphaticDashboard(snapshot: _glymphaticSnapshot!),
+              const SizedBox(height: 12),
+            ],
             if (_operationalMode == SgpOperationalMode.investigation &&
                 _procedureTimeline != null) ...[
               SgpArrestTimelineBar(timeline: _procedureTimeline!),
