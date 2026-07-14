@@ -81,26 +81,16 @@
 		<key>FieldOrdinanceFilter</key>
 		<string>현장 조례·지자체 법령 자동 매칭을 위해 일시적으로 위치를 확인합니다.</string>
 	</dict>
-	<!-- 원격 API·OTA (프로덕션 IAM 연동) — 정통법 승인 후 활성 -->
+	<!-- 온디바이스 폐쇄망 기본 — 임의 HTTP 차단. OTA는 별도 빌드/승인 채널에서만. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 		<key>NSAllowsLocalNetworking</key>
-		<true/>
+		<false/>
 	</dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>승인된 내부망 Quantum Legal API 및 위계 OTA 서버와 통신하기 위해 로컬 네트워크 접근이 필요할 수 있습니다.</string>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_sgp-agent._tcp</string>
-	</array>
-	<!-- 향후 사법 타임라인·체포 시한 알림 -->
+	<!-- 향후 사법 타임라인·체포 시한 로컬 알림 (원격 푸시 미사용) -->
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>체포 시한·영장 신청 마감 등 사법 절차 알림을 수신합니다. 긴급 현장 판단 보조 목적입니다.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
+	<string>체포 시한·영장 신청 마감 등 사법 절차 알림을 표시합니다. 긴급 현장 판단 보조 목적입니다.</string>
 </dict>
 </plist>

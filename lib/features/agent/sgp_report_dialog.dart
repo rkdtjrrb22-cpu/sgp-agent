@@ -53,66 +53,93 @@ class _LegalReportDialogState extends State<_LegalReportDialog>
     final docs = widget.report.officialDocuments;
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       backgroundColor: SgpAppTheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 720),
+        constraints: const BoxConstraints(maxWidth: 640, maxHeight: 760),
         child: Column(
           children: [
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 14, 8, 0),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [SgpAppTheme.surfaceHigh, SgpAppTheme.surface],
                 ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 border: Border(bottom: BorderSide(color: SgpAppTheme.border)),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.description, color: SgpAppTheme.accent, size: 26),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(
+                          Icons.description_outlined,
+                          color: SgpAppTheme.accent,
+                          size: 26,
+                        ),
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '사법 서류 초안',
+                            const Text(
+                              '판례 인용 · 사법 서류 초안',
+                              textAlign: TextAlign.start,
                               style: TextStyle(
                                 color: SgpAppTheme.textPrimary,
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
+                                height: 1.25,
                               ),
                             ),
+                            const SizedBox(height: 4),
                             Text(
-                              '클립보드 복사됨 · 판례 ${widget.report.citedPrecedentIds.length}건',
-                              style: const TextStyle(color: SgpAppTheme.textSecondary, fontSize: 11),
+                              '클립보드 복사 완료  ·  판례 ${widget.report.citedPrecedentIds.length}건  ·  '
+                              '교열 후 사용',
+                              textAlign: TextAlign.start,
+                              style: const TextStyle(
+                                color: SgpAppTheme.textSecondary,
+                                fontSize: 11,
+                                height: 1.35,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: SgpAppTheme.textSecondary),
+                        icon: const Icon(
+                          Icons.close,
+                          color: SgpAppTheme.textSecondary,
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
                   TabBar(
                     controller: _tabs,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
                     labelColor: SgpAppTheme.accent,
                     unselectedLabelColor: SgpAppTheme.textMuted,
                     indicatorColor: SgpAppTheme.primary,
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    labelStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    unselectedLabelStyle: const TextStyle(fontSize: 12),
                     tabs: const [
-                      Tab(text: '초동조치 보고서'),
-                      Tab(text: '범죄 발생보고서'),
-                      Tab(text: '현행범·긴급체포서'),
+                      Tab(text: '1. 초동조치 보고서'),
+                      Tab(text: '2. 범죄 발생보고서'),
+                      Tab(text: '3. 현행범·긴급체포서'),
                     ],
                   ),
                 ],
@@ -129,20 +156,23 @@ class _LegalReportDialogState extends State<_LegalReportDialog>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Row(
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => _copyCurrentTab(),
+                    onPressed: _copyCurrentTab,
                     icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('탭 복사'),
+                    label: const Text('탭 복사', style: TextStyle(fontSize: 13)),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () => _shareReport(context),
                       icon: const Icon(Icons.share),
-                      label: const Text('전체 공유'),
+                      label: const Text(
+                        '전체 공유',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -158,15 +188,19 @@ class _LegalReportDialogState extends State<_LegalReportDialog>
   }
 
   Widget _docPane(String text) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: SelectableText(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          height: 1.5,
-          fontFamily: 'monospace',
-          color: SgpAppTheme.textPrimary,
+    return ColoredBox(
+      color: SgpAppTheme.surface,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+        child: SelectableText(
+          text,
+          textAlign: TextAlign.start,
+          style: const TextStyle(
+            fontSize: 13.5,
+            height: 1.65,
+            letterSpacing: 0.05,
+            color: SgpAppTheme.textPrimary,
+          ),
         ),
       ),
     );
@@ -207,6 +241,7 @@ class _LegalReportDialogState extends State<_LegalReportDialog>
           '보안업무규정 및 개인정보 보호 원칙에 따라 '
           '승인된 업무 채널(폴넷 메신저 등)로만 전송하십시오.\n\n'
           '외부 메신저·SNS 전송 시 발생하는 책임은 전송자 본인에게 있습니다.',
+          style: TextStyle(height: 1.45, fontSize: 14),
         ),
         actions: [
           TextButton(

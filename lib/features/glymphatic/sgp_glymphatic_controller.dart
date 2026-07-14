@@ -28,6 +28,8 @@ import 'sgp_glymphatic_flusher.dart';
 
 import 'sgp_glymphatic_handshake.dart';
 
+import 'sgp_glymphatic_flush_policy.dart';
+
 import 'sgp_glymphatic_innovation_engine.dart';
 
 import 'sgp_glymphatic_monitor.dart';
@@ -168,6 +170,9 @@ class SgpGlymphaticController {
 
   DateTime _lastIngressAt = DateTime.now();
 
+  /// 특허 2호 — 마지막 사용자 조작 시각 (Major Flush Idle Window).
+  DateTime _lastUserInteractionTime = DateTime.now();
+
   int _queueIngressSinceIdle = 0;
 
   final List<String> _pendingTraffic = [];
@@ -191,6 +196,16 @@ class SgpGlymphaticController {
   int get pendingPacketCount => _pendingTraffic.length;
 
   GlymphaticHandshakeResult? get lastHandshake => _lastHandshake;
+
+  DateTime get lastUserInteractionTime => _lastUserInteractionTime;
+
+  Duration get idleSinceUserInteraction =>
+      DateTime.now().difference(_lastUserInteractionTime);
+
+  /// HCI·터치·스크롤 시 호출 — 예방적 Major Flush 휴면 윈도우 리셋.
+  void noteUserInteraction([DateTime? at]) {
+    _lastUserInteractionTime = at ?? DateTime.now();
+  }
 
 
 
@@ -322,9 +337,13 @@ class SgpGlymphaticController {
 
   GlymphaticMonitorSnapshot monitorOnce({Duration? idleOverride}) {
 
+    final sinceUser = DateTime.now().difference(_lastUserInteractionTime);
+
+    final sinceIngress = DateTime.now().difference(_lastIngressAt);
+
     final idle = idleOverride ??
 
-        DateTime.now().difference(_lastIngressAt);
+        (sinceUser < sinceIngress ? sinceUser : sinceIngress);
 
     final ingress = _queueIngressSinceIdle;
 
@@ -431,10 +450,14 @@ class SgpGlymphaticController {
 
 
   /// 트리거 접수 시 핑퐁 Failover + 백그라운드 정화.
+  ///
+  /// [mode] == minor 이면 핑퐁 없이 Phagophore 미세 정제만 수행 (오버레이 바이패스 레인).
 
   Future<GlymphaticHealEvent?> triggerSelfHealing({
 
     List<GlymphaticTrigger>? triggers,
+
+    GlymphaticFlushMode mode = GlymphaticFlushMode.major,
 
   }) async {
 
@@ -442,9 +465,65 @@ class SgpGlymphaticController {
 
     _isFlushing = true;
 
+    final anchors = _ontologyAnchors();
 
+    final ontology = _ontology ?? SgpLegalOntologySession.instance.graph;
 
     final previousActiveId = _active.nodeId;
+
+    if (mode == GlymphaticFlushMode.minor) {
+
+      final flushReport = await SgpGlymphaticFlusher.minorFlush(
+
+        target: _active,
+
+        ontology: ontology,
+
+        ontologyAnchors: anchors,
+
+      );
+
+      final handshake = GlymphaticHandshakeResult(
+
+        sourceNodeId: previousActiveId,
+
+        targetNodeId: previousActiveId,
+
+        transferredFragments: 0,
+
+        transferredOntologyNodes: const <String>[],
+
+        pendingPacketsRelayed: 0,
+
+        confirmed: true,
+
+      );
+
+      final event = GlymphaticHealEvent(
+
+        timestamp: DateTime.now(),
+
+        triggers: triggers ??
+
+            const [GlymphaticTrigger.semanticPollution],
+
+        previousActiveId: previousActiveId,
+
+        newActiveId: _active.nodeId,
+
+        handshake: handshake,
+
+        flushReport: flushReport,
+
+      );
+
+      healLog.add(event);
+
+      _isFlushing = false;
+
+      return event;
+
+    }
 
     final handshake = _performPingPongHandshaking();
 
@@ -464,9 +543,9 @@ class SgpGlymphaticController {
 
       target: flushTarget,
 
-      ontology: _ontology ?? SgpLegalOntologySession.instance.graph,
+      ontology: ontology,
 
-      ontologyAnchors: _ontologyAnchors(),
+      ontologyAnchors: anchors,
 
     );
 

@@ -24,6 +24,7 @@ import 'sgp_precedent_dictionary.dart';
 import 'sgp_legal_ontology_session.dart';
 
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_agent_node.dart';
+import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_controller.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_flusher.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_handshake.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_innovation_engine.dart';
@@ -479,6 +480,9 @@ class SgpAgentEngine {
   void Function(GlymphaticEngineSnapshot snapshot)? _onGlymphaticMonitorTick;
   Future<void> Function(GlymphaticEngineSnapshot snapshot)? glymphaticFlushDelegate;
 
+  /// UI 세션 컨트롤러 — 부착 시 Main/Shadow 단일 스택으로 메트릭·라우팅 동기화.
+  SgpGlymphaticController? _attachedGlymphatic;
+
   SgpAgentEngine() {
     _glymphaticMain.activate();
     _glymphaticShadow.markReadyForSwap();
@@ -486,13 +490,37 @@ class SgpAgentEngine {
     _glymphaticStandby = _glymphaticShadow;
   }
 
-  SgpGlymphaticAgentNode get glymphaticActiveNode => _glymphaticActive;
-  SgpGlymphaticAgentNode get glymphaticStandbyNode => _glymphaticStandby;
-  GlymphaticHandshakeResult? get lastGlymphaticHandshake => _lastGlymphaticHandshake;
-  GlymphaticReadyStateReport? get lastGlymphaticReadyReport => _lastGlymphaticReadyReport;
-  bool get isGlymphaticReadyForSwap => _glymphaticStandby.readyForSwap;
+  /// Flutter 화면의 [SgpGlymphaticSession]을 엔진 프로브에 연결 (Dual-Stack 싱글소스화).
+  void attachGlymphaticController(SgpGlymphaticController controller) {
+    _attachedGlymphatic = controller;
+  }
 
-  SgpGlymphaticAgentNode get _glymphaticProbe => _glymphaticActive;
+  void detachGlymphaticController() => _attachedGlymphatic = null;
+
+  bool get hasUnifiedGlymphaticStack => _attachedGlymphatic != null;
+
+  SgpGlymphaticAgentNode get glymphaticActiveNode =>
+      _attachedGlymphatic?.activeNode ?? _glymphaticActive;
+
+  SgpGlymphaticAgentNode get glymphaticStandbyNode =>
+      _attachedGlymphatic?.standbyNode ?? _glymphaticStandby;
+
+  GlymphaticHandshakeResult? get lastGlymphaticHandshake =>
+      _attachedGlymphatic?.lastHandshake ?? _lastGlymphaticHandshake;
+
+  GlymphaticReadyStateReport? get lastGlymphaticReadyReport {
+    final attached = _attachedGlymphatic;
+    if (attached != null && attached.healLog.isNotEmpty) {
+      return attached.healLog.last.flushReport.readyState ??
+          _lastGlymphaticReadyReport;
+    }
+    return _lastGlymphaticReadyReport;
+  }
+
+  bool get isGlymphaticReadyForSwap =>
+      (_attachedGlymphatic?.standbyNode ?? _glymphaticStandby).readyForSwap;
+
+  SgpGlymphaticAgentNode get _glymphaticProbe => glymphaticActiveNode;
 
   bool get isLoaded => _isLoaded;
   bool get isGlymphaticMonitorRunning => _glymphaticMonitorTimer != null;
@@ -561,24 +589,40 @@ class SgpAgentEngine {
         .toList(growable: false);
   }
 
-  /// 현장 입력을 글림파틱 프로브에 기록 (UI 게이지·컨트롤러 동기화).
+  /// 현장 입력을 글림파틱 프로브에 기록.
+  ///
+  /// 컨트롤러가 부착된 경우 단일 스택([SgpGlymphaticController.routeTraffic])만 사용한다.
   void ingestGlymphaticTraffic(String payload) {
+    final attached = _attachedGlymphatic;
+    if (attached != null) {
+      if (payload.trim().isEmpty) return;
+      attached.routeTraffic(payload);
+      return;
+    }
     _recordGlymphaticContext(payload);
   }
 
   void _recordGlymphaticContext(String text, {String? ontologyNodeId}) {
     if (text.trim().isEmpty) return;
-    if (_glymphaticActive.isThrottled && !_glymphaticStandby.isThrottled) {
-      _glymphaticStandby.appendContext(text, ontologyNodeId: ontologyNodeId);
+    final active = glymphaticActiveNode;
+    final standby = glymphaticStandbyNode;
+    if (active.isThrottled && !standby.isThrottled) {
+      standby.appendContext(text, ontologyNodeId: ontologyNodeId);
       _glymphaticPendingTraffic.add(text);
       return;
     }
-    _glymphaticActive.appendContext(text, ontologyNodeId: ontologyNodeId);
+    active.appendContext(text, ontologyNodeId: ontologyNodeId);
   }
 
   void _recordGlymphaticInference(String output, double latencyMs) {
-    _glymphaticProbe.recordOutput(output);
-    _glymphaticProbe.recordLatency(latencyMs);
+    final probe = _glymphaticProbe;
+    probe.recordOutput(output);
+    probe.recordLatency(latencyMs);
+    _attachedGlymphatic?.recordInference(
+      nodeId: probe.nodeId,
+      output: output,
+      latencyMs: latencyMs,
+    );
   }
 
   List<GlymphaticTrigger> mapGlymphaticTriggers(GlymphaticEngineSnapshot snapshot) {
@@ -597,6 +641,16 @@ class SgpAgentEngine {
 
   /// 핑퐁 스왑 — Shadow가 현장 지령·온톨로지 세션을 무손실 이어받는다.
   GlymphaticHandshakeResult pingPongSwapWithHandshaking() {
+    final attached = _attachedGlymphatic;
+    if (attached != null) {
+      // 단일 스택: 컨트롤러 heal 경로가 스왑을 소유. 마지막 핸드셰이크만 노출.
+      final last = attached.lastHandshake;
+      if (last != null) {
+        _lastGlymphaticHandshake = last;
+        return last;
+      }
+    }
+
     _glymphaticActive.throttle();
 
     final graph = SgpLegalOntologySession.instance.graph;
@@ -622,7 +676,7 @@ class SgpAgentEngine {
   Future<GlymphaticFlushReport> flushContextByOntology({
     SgpGlymphaticAgentNode? target,
   }) async {
-    final node = target ?? _glymphaticStandby;
+    final node = target ?? glymphaticStandbyNode;
     final report = await SgpGlymphaticFlusher.flushContextByOntology(
       target: node,
       ontology: SgpLegalOntologySession.instance.graph,
@@ -634,9 +688,9 @@ class SgpAgentEngine {
 
   Future<void> _flushStandbyInBackground() async {
     try {
-      await flushContextByOntology(target: _glymphaticStandby);
+      await flushContextByOntology(target: glymphaticStandbyNode);
     } catch (_) {
-      _glymphaticStandby.markReadyForSwap();
+      glymphaticStandbyNode.markReadyForSwap();
     }
   }
 

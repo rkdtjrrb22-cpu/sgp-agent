@@ -182,17 +182,25 @@ class _HeaderRow extends StatelessWidget {
         const Expanded(
           child: Text(
             '글림파틱 자가치유 관제',
+            textAlign: TextAlign.start,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.25,
               color: SgpFieldColors.textPrimary,
             ),
           ),
         ),
+        const SizedBox(width: 8),
         Text(
-          'Active: ${snapshot.activeNodeId}',
+          'Active  ${snapshot.activeNodeId}',
+          textAlign: TextAlign.end,
           style: const TextStyle(
-            fontSize: 10,
+            fontSize: 11,
+            height: 1.2,
+            fontWeight: FontWeight.w600,
             color: SgpFieldColors.textSecondary,
           ),
         ),

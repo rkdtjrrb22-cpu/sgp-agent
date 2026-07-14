@@ -54,7 +54,18 @@ import '../control/sgp_custody_management.dart';
 import '../security/sgp_secure_crypto.dart';
 import 'sgp_vector_store.dart';
 import '../glymphatic/sgp_glymphatic_controller.dart';
+import '../glymphatic/sgp_glymphatic_flush_policy.dart';
+import '../glymphatic/sgp_glymphatic_ui_bus.dart';
+import '../glymphatic/sgp_glymphatic_urgency_detector.dart';
 import '../glymphatic/widgets/sgp_glymphatic_dashboard.dart';
+import '../glymphatic/widgets/sgp_glymphatic_flush_overlay.dart';
+import '../glymphatic/widgets/sgp_glymphatic_urgency_scope.dart';
+import '../evidence/sgp_evidence_coc_engine.dart';
+import '../evidence/sgp_evidence_scenario_pipeline.dart';
+import '../evidence/sgp_electronic_seizure_report.dart';
+import '../evidence/sgp_evidence_coc_secure_store.dart';
+import '../evidence/widgets/sgp_evidence_coc_traffic_banner.dart';
+import '../evidence/widgets/sgp_evidence_scenario_cards.dart';
 import 'sgp_production_stub.dart';
 import 'sgp_quantum_legal_remote.dart';
 import 'sgp_main_user_interface.dart';
@@ -140,7 +151,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   SgpDeathCaseDecision? _deathCaseDecision;
   CustodyManagementResult? _custodyResult;
   final _glymphaticController = SgpGlymphaticSession.instance;
+  final _glymphaticUiBus = SgpGlymphaticUiBus();
+  final _urgencyDetector = SgpGlymphaticUrgencyDetector();
   GlymphaticDashboardSnapshot? _glymphaticSnapshot;
+  EvidenceCoCSession? _evidenceCoC;
+  EvidenceScenarioPipelineResult? _evidencePipeline;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -152,6 +167,12 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     configureAgentStorageCipher(SgpNativeBridge.cacheCipher);
     _rawTextController.addListener(_onRawTextChanged);
     _sttFocusNode.addListener(_onSttFocusChanged);
+    _glymphaticUiBus.inputLock.onPauseSttStream = _sttEngine.pauseInputStream;
+    _glymphaticUiBus.inputLock.onResumeSttStream = _sttEngine.resumeInputStream;
+    _glymphaticUiBus.inputLock.onDrainPayload = (payload) {
+      if (payload.trim().isEmpty) return;
+      _engine.ingestGlymphaticTraffic(payload);
+    };
     _initEngine();
     _loadPrecedentDictionary();
     _initCourtPrecedentsOta();
@@ -159,6 +180,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _initStt();
     _subscribeAudioHotplug();
     _refreshSavedRecords();
+  }
+
+  void _noteUserInteraction() {
+    _glymphaticController.noteUserInteraction();
+    _urgencyDetector.noteCalmInteraction();
   }
 
   void _subscribeAudioHotplug() {
@@ -346,6 +372,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   }
 
   void _onRawTextChanged() {
+    _noteUserInteraction();
+    if (_glymphaticUiBus.inputQueuePaused) {
+      _glymphaticUiBus.inputLock.enqueueOrPass(_rawTextController.text);
+    }
     _ruleDebounce?.cancel();
     _ruleDebounce = Timer(const Duration(milliseconds: 400), _applyRuleMapping);
   }
@@ -353,7 +383,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   void _applyRuleMapping() {
     final text = _rawTextController.text;
     if (text.trim().isNotEmpty) {
-      _glymphaticController.routeTraffic(text);
+      // 단일 스택: attach 후 engine.ingest → controller.routeTraffic 한 경로만 사용
       _engine.ingestGlymphaticTraffic(text);
     }
     final rules = matchLawFilters(text);
@@ -372,6 +402,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _refreshForceAssessment();
     _refreshCivilComplaintRoute();
     _refreshMedicalTransferRoute();
+    _refreshEvidencePipeline();
     _refreshKgragReasoning();
     _refreshAntiCorruption();
     _refreshStatuteDomain();
@@ -1118,30 +1149,182 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
 
   void _refreshGlymphaticDashboard() {
     if (!mounted) return;
-    setState(() {
-      _glymphaticSnapshot = GlymphaticDashboardSnapshot.capture(
-        engine: _engine,
-        controller: _glymphaticController,
-      );
-    });
+    final snap = GlymphaticDashboardSnapshot.capture(
+      engine: _engine,
+      controller: _glymphaticController,
+    );
+    _glymphaticUiBus.publishSnapshot(snap);
+    setState(() => _glymphaticSnapshot = snap);
   }
 
   void _onGlymphaticMonitorTick(GlymphaticEngineSnapshot _) {
     _refreshGlymphaticDashboard();
   }
 
+  void _refreshEvidencePipeline() {
+    final text = _rawTextController.text;
+    if (text.trim().isEmpty) {
+      setState(() {
+        _evidenceCoC = null;
+        _evidencePipeline = null;
+      });
+      return;
+    }
+    final pipeline = SgpEvidenceScenarioPipeline.run(text);
+    // 수동 CoC 진행 단계 유지 — 텍스트 재스캔 시 맹점만 갱신
+    var coc = pipeline.chainOfCustody;
+    final prev = _evidenceCoC;
+    if (prev != null && prev.completedCount > 0) {
+      final mergedSteps = Map<EvidenceCoCStep, EvidenceCoCStepRecord>.from(
+        coc.steps,
+      );
+      for (final entry in prev.steps.entries) {
+        if (entry.value.completed) {
+          mergedSteps[entry.key] = entry.value;
+        }
+      }
+      final spots = SgpEvidenceCoCEngine.scanBlindSpots(text);
+      spots.removeWhere((b) {
+        if (b == EvidenceBlindSpot.hashMissing &&
+            (mergedSteps[EvidenceCoCStep.hashExtracted]?.completed ?? false)) {
+          return true;
+        }
+        if (b == EvidenceBlindSpot.participationNotNotified &&
+            (mergedSteps[EvidenceCoCStep.participationNotified]?.completed ??
+                false)) {
+          return true;
+        }
+        if ((b == EvidenceBlindSpot.fullDumpDetected ||
+                b == EvidenceBlindSpot.selectiveSeizureViolation ||
+                b == EvidenceBlindSpot.nonRelatedSeizureRisk) &&
+            (mergedSteps[EvidenceCoCStep.selectiveSeizure]?.completed ??
+                false)) {
+          return true;
+        }
+        return false;
+      });
+      coc = EvidenceCoCSession(
+        startedAt: prev.startedAt,
+        steps: mergedSteps,
+        mediaLabel: prev.mediaLabel ?? coc.mediaLabel,
+        deviceType: coc.deviceType ?? prev.deviceType,
+        blindSpots: spots,
+      );
+    }
+    setState(() {
+      _evidencePipeline = EvidenceScenarioPipelineResult(
+        kind: pipeline.kind,
+        chainOfCustody: coc,
+        crimeFacts: pipeline.crimeFacts,
+        integrityChecklist: [
+          '디지털 증거수집 무결성 체크리스트 (대법원·하급심 기준)',
+          ...EvidenceCoCStep.values.map((s) {
+            final done = coc.steps[s]?.completed ?? false;
+            return '${done ? "☑" : "☐"} ${s.label}';
+          }),
+          if (coc.blindSpots.isNotEmpty) '--- 맹점 ---',
+          ...coc.blindSpots.map((b) => '⚠ ${b.label}: ${b.actionGuide}'),
+        ],
+        supplementaryWarning:
+            SgpEvidenceCoCEngine.supplementaryInvestigationWarning(coc),
+      );
+      _evidenceCoC = coc;
+    });
+  }
+
+  void _advanceEvidenceCoCStep() {
+    final session = _evidenceCoC;
+    if (session == null) return;
+    final next = session.nextRequiredStep;
+    if (next == null) return;
+    try {
+      final updated = SgpEvidenceCoCEngine.completeStep(
+        session,
+        next,
+        note: '현장 수동 확인',
+        hashSourcePayload: next == EvidenceCoCStep.hashExtracted
+            ? '${_rawTextController.text}|${DateTime.now().toIso8601String()}'
+            : null,
+      );
+      setState(() {
+        _evidenceCoC = updated;
+        if (_evidencePipeline != null) {
+          _evidencePipeline = EvidenceScenarioPipelineResult(
+            kind: _evidencePipeline!.kind,
+            chainOfCustody: updated,
+            crimeFacts: _evidencePipeline!.crimeFacts,
+            integrityChecklist: [
+              '디지털 증거수집 무결성 체크리스트 (대법원·하급심 기준)',
+              ...EvidenceCoCStep.values.map((s) {
+                final done = updated.steps[s]?.completed ?? false;
+                return '${done ? "☑" : "☐"} ${s.label}';
+              }),
+              if (updated.blindSpots.isNotEmpty) '--- 맹점 ---',
+              ...updated.blindSpots.map((b) => '⚠ ${b.label}: ${b.actionGuide}'),
+            ],
+            supplementaryWarning:
+                SgpEvidenceCoCEngine.supplementaryInvestigationWarning(updated),
+          );
+        }
+      });
+      unawaited(() async {
+        try {
+          final dir = await getAgentStorageDirectory();
+          await SgpEvidenceCoCSecureStore.persistSession(
+            updated,
+            directory: dir,
+          );
+        } catch (_) {
+          // 금고 저장 실패는 UI 절차를 차단하지 않음 (오프라인 복원용)
+        }
+      }());
+      _showSnack('${next.label} 완료');
+    } catch (e) {
+      _showSnack('CoC 시퀀스: $e');
+    }
+  }
+
+  Future<void> _copyElectronicSeizureReport() async {
+    final coc = _evidenceCoC;
+    if (coc == null) return;
+    final md = SgpElectronicSeizureReport.buildMarkdown(
+      chainOfCustody: coc,
+      rawText: _rawTextController.text,
+      pipeline: _evidencePipeline,
+    );
+    await copyEvidenceMarkdown(md);
+    _showSnack('전자정보 압수·수색 결과보고서가 복사되었습니다.');
+  }
+
   Future<void> _initEngine() async {
     try {
       await _engine.loadModel();
+      _engine.attachGlymphaticController(_glymphaticController);
       _engine.glymphaticFlushDelegate = (snapshot) async {
-        _glymphaticController.attachOntology(SgpLegalOntologySession.instance.graph);
-        _glymphaticController.recordInference(
-          nodeId: _glymphaticController.activeNode.nodeId,
-          output: snapshot.semanticEntropy.toString(),
-          latencyMs: snapshot.inferenceLatencyMs,
+        final presentation = SgpGlymphaticFlushPolicy.resolve(
+          isUrgentSituation: _urgencyDetector.isUrgentSituation,
+          lastUserInteractionTime:
+              _glymphaticController.lastUserInteractionTime,
         );
-        await _glymphaticController.triggerSelfHealing(
-          triggers: _engine.mapGlymphaticTriggers(snapshot),
+        final allowOverlay =
+            SgpGlymphaticFlushPolicy.allowsOverlay(presentation);
+        final mode = SgpGlymphaticFlushPolicy.modeFor(presentation);
+        await _glymphaticUiBus.runWithFlushOverlay(
+          allowOverlay: allowOverlay,
+          () async {
+            _glymphaticController.attachOntology(
+              SgpLegalOntologySession.instance.graph,
+            );
+            _glymphaticController.recordInference(
+              nodeId: _glymphaticController.activeNode.nodeId,
+              output: snapshot.semanticEntropy.toString(),
+              latencyMs: snapshot.inferenceLatencyMs,
+            );
+            await _glymphaticController.triggerSelfHealing(
+              triggers: _engine.mapGlymphaticTriggers(snapshot),
+              mode: mode,
+            );
+          },
         );
         _refreshGlymphaticDashboard();
       };
@@ -1176,9 +1359,12 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _rawTextController.dispose();
     _scrollController.dispose();
     _sttFocusNode.dispose();
+    _engine.detachGlymphaticController();
     _engine.dispose();
     _sttEngine.dispose();
     _glymphaticController.dispose();
+    _glymphaticUiBus.dispose();
+    _urgencyDetector.dispose();
     super.dispose();
   }
 
@@ -1251,6 +1437,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       quantumComparison: _quantumComparison,
       medicalTransferSession: _medicalTransferSession,
       kgragReasoning: _kgragResult,
+      evidenceCoC: _evidenceCoC,
     );
     final report = SgpReportGenerator.generate(input);
     await showLegalReportDialog(context, report: report);
@@ -1722,7 +1909,12 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: SgpGlymphaticUrgencyScope(
+        detector: _urgencyDetector,
+        onUserInteraction: _noteUserInteraction,
+        child: Stack(
+        children: [
+          SingleChildScrollView(
         controller: _scrollController,
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -1734,10 +1926,35 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
               onChanged: (mode) => setState(() => _operationalMode = mode),
             ),
             const SizedBox(height: 12),
-            if (_glymphaticSnapshot != null) ...[
-              SgpGlymphaticDashboard(snapshot: _glymphaticSnapshot!),
+            if (_evidenceCoC != null) ...[
+              SgpEvidenceCoCTrafficBanner(
+                session: _evidenceCoC!,
+                onAdvanceStep: _advanceEvidenceCoCStep,
+                onOpenGuide: () {
+                  final spots = _evidenceCoC!.blindSpots;
+                  _showSnack(
+                    spots.isEmpty
+                        ? '디지털 절차 4단계(소유자→선별→해시→참여권)를 순서대로 완료하세요.'
+                        : spots.first.actionGuide,
+                  );
+                },
+              ),
               const SizedBox(height: 12),
             ],
+            ListenableBuilder(
+              listenable: _glymphaticUiBus,
+              builder: (context, _) {
+                final snap =
+                    _glymphaticUiBus.snapshot ?? _glymphaticSnapshot;
+                if (snap == null) return const SizedBox.shrink();
+                return Column(
+                  children: [
+                    SgpGlymphaticDashboard(snapshot: snap),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              },
+            ),
             if (_operationalMode == SgpOperationalMode.investigation &&
                 _procedureTimeline != null) ...[
               SgpArrestTimelineBar(timeline: _procedureTimeline!),
@@ -1824,6 +2041,13 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
             ],
             const SizedBox(height: 12),
             _buildSttField(),
+            if (_evidencePipeline != null) ...[
+              const SizedBox(height: 12),
+              SgpEvidenceScenarioCards(
+                result: _evidencePipeline!,
+                onCopyReport: _copyElectronicSeizureReport,
+              ),
+            ],
             if (_quantumComparison != null) ...[
               const SizedBox(height: 12),
               SgpFieldCard(
@@ -1929,6 +2153,15 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
             _buildStickyBottomBar(inScrollView: true),
             const SizedBox(height: 8),
           ],
+        ),
+          ),
+          ListenableBuilder(
+            listenable: _glymphaticUiBus,
+            builder: (context, _) => SgpGlymphaticFlushOverlay(
+              visible: _glymphaticUiBus.overlayVisible,
+            ),
+          ),
+        ],
         ),
       ),
     );

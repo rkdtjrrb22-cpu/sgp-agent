@@ -46,9 +46,15 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // TODO: Replace with production signing before store upload.
             signingConfig = signingConfigs.getByName("debug")
+            // R8/ProGuard — 리소스·코드 다이어트 (Flutter tree-shaking과 병행)
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

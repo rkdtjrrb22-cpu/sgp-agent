@@ -11,6 +11,8 @@ import 'sgp_official_document_drafts.dart';
 import 'sgp_medical_custody_engine.dart';
 import 'sgp_kgrag_router.dart';
 import '../control/sgp_anti_corruption_filter.dart';
+import '../evidence/sgp_evidence_coc_engine.dart';
+import '../glymphatic/sgp_glymphatic_innovation_engine.dart';
 
 /// 보고서 생성에 필요한 현장 세션 데이터.
 class SgpReportInput {
@@ -23,6 +25,7 @@ class SgpReportInput {
     this.quantumComparison,
     this.medicalTransferSession,
     this.kgragReasoning,
+    this.evidenceCoC,
   });
 
   final String rawText;
@@ -33,6 +36,9 @@ class SgpReportInput {
   final SgpQuantumLegalComparison? quantumComparison;
   final SgpMedicalTransferSession? medicalTransferSession;
   final KgragReasoningResult? kgragReasoning;
+
+  /// 디지털 증거 연속성 (유치인 custody와 분리된 evidenceCoC).
+  final EvidenceCoCSession? evidenceCoC;
 
   /// 저장 기록·파이프라인 JSON에서 복원.
   factory SgpReportInput.fromSessionJson(Map<String, dynamic> json) {
@@ -108,15 +114,29 @@ class SgpReportGenerator {
     // 본문 절에서 이미 인용한 판례는 요지 절에서 재반복하지 않는다.
     final inlineCited = <String>{};
 
+    buf.writeln(_documentLetterhead(input));
+    buf.writeln();
     buf.writeln('# SGP-Agent 사법 무결성 초동조치 보고서');
     buf.writeln();
-    _section(buf, '1. 개요', _buildOverview(input));
+    buf.writeln(
+      '> 본 문서는 현장 초동조치·증거능력·위수증 예방을 위한 **내부용 초안**입니다. '
+      '외부 송부 전 수사관 최종 교열·결재가 필요합니다.',
+    );
+    buf.writeln();
+    _section(buf, '1. 문서 식별·개요', _buildOverview(input));
     _section(buf, '2. 가·피해자 분리 조치',
         _buildVictimSeparation(input, precedents, inlineCited));
     _section(buf, '3. 물리력 대응',
         _buildPhysicalForce(input, precedents, inlineCited));
     _section(buf, '4. 현장 채증 법적 고지',
         _buildEvidenceNotice(input, precedents, inlineCited));
+    if (input.evidenceCoC != null) {
+      _section(
+        buf,
+        '4-A. 디지털 증거 Chain of Custody (evidenceCoC)',
+        _buildEvidenceCoCSection(input.evidenceCoC!),
+      );
+    }
     _section(buf, '5. 신병 인계·구금', _buildCustodyHandover(input));
     if (input.advancedAnalysis != null) {
       _section(buf, '6. 법리 분석 (SGP-Agent Pro)',
@@ -139,11 +159,11 @@ class SgpReportGenerator {
       _section(buf, '7. 양자적 법률 비교', _buildQuantumSection(input.quantumComparison!));
       _section(buf, '8. 추가 인용 대법원 판례 요지', _buildPrecedentBlock(remaining));
       _section(buf, '9. 절차 이행 현황', _buildProcedureChecklist(input));
-      _section(buf, '10. 수사관 확인', _buildOfficerConfirmation(input.generatedAt));
+      _section(buf, '10. 수사관 확인·서명', _buildOfficerConfirmation(input.generatedAt));
     } else {
       _section(buf, '7. 추가 인용 대법원 판례 요지', _buildPrecedentBlock(remaining));
       _section(buf, '8. 절차 이행 현황', _buildProcedureChecklist(input));
-      _section(buf, '9. 수사관 확인', _buildOfficerConfirmation(input.generatedAt));
+      _section(buf, '9. 수사관 확인·서명', _buildOfficerConfirmation(input.generatedAt));
     }
 
     // 공식 서류는 markdown 본문에 이어붙이지 않는다 —
@@ -158,6 +178,18 @@ class SgpReportGenerator {
       generatedAt: input.generatedAt,
       officialDocuments: officialDocs,
     );
+  }
+
+  static String _documentLetterhead(SgpReportInput input) {
+    return '''
+---
+**문서 분류**  보안 · 수사 내부용 (외부 유출 금지)
+**문서 성격**  판례 인용 초동조치 보고서 초안
+**적용 규범**  형사소송법 · 경찰관직무집행법 · 디지털 증거 압수 법리
+**생성 엔진**  SGP-Agent On-Device · ${SgpGlymphaticInnovationEngine.architectSignature}
+**생성 시각**  ${_fmtDateTime(input.generatedAt)}
+**폐쇄망**     forbidsNetworkEgress · AES Secure Vault (evidenceCoC)
+---'''.trim();
   }
 
   /// 판례를 본문에 1회만 인용 — 이미 인용된 판례는 null.
@@ -228,7 +260,8 @@ class SgpReportGenerator {
     final t = input.timeline;
     final lines = <String>[
       '- **작성 일시**: ${_fmtDateTime(input.generatedAt)}',
-      '- **보고 유형**: 현장 초동조치·사법 무결성 기록',
+      '- **보고 유형**: 현장 초동조치 · 사법 무결성 · 판례 인용 기록',
+      '- **활용 목적**: 폴넷·수사서식 붙여넣기용 초안 (수사관 교열 후 확정)',
     ];
     if (t != null) {
       lines.addAll([
@@ -240,10 +273,53 @@ class SgpReportGenerator {
     } else {
       lines.add('- **체포 시각**: (타임라인 미시작 — 현장 시각 수기 기재)');
     }
+    if (input.evidenceCoC != null) {
+      lines.add(
+        '- **디지털 증거 신호등**: ${input.evidenceCoC!.trafficLabel} '
+        '(${input.evidenceCoC!.completedCount}/4 단계)',
+      );
+    }
     if (input.rawText.trim().isNotEmpty) {
       final excerpt = input.rawText.trim();
-      final short = excerpt.length > 120 ? '${excerpt.substring(0, 120)}…' : excerpt;
-      lines.add('- **현장 원문 요약**: $short');
+      final short = excerpt.length > 160 ? '${excerpt.substring(0, 160)}…' : excerpt;
+      lines.add('- **현장 요지(원문)**: $short');
+    }
+    return lines;
+  }
+
+  static List<String> _buildEvidenceCoCSection(EvidenceCoCSession coc) {
+    final lines = <String>[
+      '- **용어 구분**: 본 절은 디지털 증거 연속성(evidenceCoC)이며, '
+          '유치인 관리(custody)와 별개입니다.',
+      '- **신호등**: ${coc.trafficLabel}',
+      '- **매체**: ${coc.deviceType ?? coc.mediaLabel ?? "미상"}',
+    ];
+    for (final step in EvidenceCoCStep.values) {
+      final rec = coc.steps[step];
+      final done = rec?.completed == true;
+      final mark = done ? '✓' : ' ';
+      final extra = <String>[];
+      if (rec?.completedAt != null) {
+        extra.add(_fmtDateTime(rec!.completedAt!));
+      }
+      if (rec?.hashValue != null) {
+        extra.add('SHA-256 `${rec!.hashValue}`');
+      }
+      lines.add(
+        '- [$mark] **${step.label}**'
+        '${extra.isEmpty ? "" : " — ${extra.join(" · ")}"}',
+      );
+    }
+    if (coc.blindSpots.isNotEmpty) {
+      lines.add('- **맹점·보완수사 안내**');
+      lines.add(
+        '  ${SgpEvidenceCoCEngine.supplementaryInvestigationWarning(coc)}',
+      );
+      for (final b in coc.blindSpots) {
+        lines.add('  - ${b.label}: ${b.actionGuide}');
+      }
+    } else {
+      lines.add('- **맹점**: 현 시점 자동 탐지 항목 없음 (수사관 최종 확인 요)');
     }
     return lines;
   }
@@ -565,8 +641,19 @@ class SgpReportGenerator {
   static List<String> _buildOfficerConfirmation(DateTime at) {
     return [
       '본 보고서는 SGP-Agent 온디바이스 AI가 현장 수집 데이터를 기반으로 '
-          '${_fmtDateTime(at)}에 자동 생성한 초안입니다.',
+          '${_fmtDateTime(at)}에 자동 생성한 **초안**입니다.',
       '**최종 체포 결정·공소 의견·증거 평가에 관한 모든 법적 책임은 출동 수사관 본인에게 있습니다.**',
+      '',
+      '| 구분 | 기재 |',
+      '| --- | --- |',
+      '| 작성 수사관 (성명·계급) | ____________________ |',
+      '| 소속 (관서·팀) | ____________________ |',
+      '| 확인 일시 | ____________________ |',
+      '| 결재(팀장/과장) | ____________________ |',
+      '',
+      '- 체크: [ ] 판례 인용 취지 교열 완료',
+      '- 체크: [ ] 디지털 증거 CoC·해시값 대조 완료',
+      '- 체크: [ ] 외부 전송 채널(폴넷 등) 보안업무규정 준수',
     ];
   }
 
@@ -598,14 +685,20 @@ class SgpReportGenerator {
     return '${d.inMinutes}분';
   }
 
-  /// 마크다운 → 폴넷 메신저용 플레인 텍스트.
+  /// 마크다운 → 폴넷 메신저용 플레인 텍스트 (가독성 우선).
   static String _markdownToPlain(String md) {
     return md
+        .replaceAll(RegExp(r'^>\s?', multiLine: true), '')
         .replaceAll(RegExp(r'^#+\s*', multiLine: true), '')
         .replaceAll('**', '')
+        .replaceAll('`', '')
         .replaceAll(RegExp(r'^- \[✓\] ', multiLine: true), '✓ ')
         .replaceAll(RegExp(r'^- \[ \] ', multiLine: true), '☐ ')
+        .replaceAll(RegExp(r'^- \[x\] ', multiLine: true, caseSensitive: false), '✓ ')
         .replaceAll(RegExp(r'^- ', multiLine: true), '• ')
+        .replaceAll(RegExp(r'\| --- \| --- \|'), '')
+        .replaceAll(RegExp(r'\|\s*'), '  ')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
         .trim();
   }
 }

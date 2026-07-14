@@ -183,6 +183,26 @@ class SgpSttEngine {
     _lastError = _modelReady ? null : '이 단말에서 음성 인식을 사용할 수 없습니다.';
   }
 
+  bool _inputStreamPaused = false;
+
+  /// 글림파틱 오버레이 동기화 — STT/입력 스트림 일시정지 (특허 3호).
+  bool get isInputStreamPaused => _inputStreamPaused;
+
+  void pauseInputStream() {
+    if (_inputStreamPaused) return;
+    _inputStreamPaused = true;
+    unawaited(_speech.stop());
+    unawaited(_speech.cancel());
+    if (_state == SttSessionState.listening ||
+        _state == SttSessionState.processing) {
+      _state = SttSessionState.idle;
+    }
+  }
+
+  void resumeInputStream() {
+    _inputStreamPaused = false;
+  }
+
   void dispose() {
     _speech.stop();
     _speech.cancel();
@@ -190,6 +210,7 @@ class SgpSttEngine {
     _modelReady = false;
     _hardwareReady = false;
     _platformSpeechReady = false;
+    _inputStreamPaused = false;
     _state = SttSessionState.idle;
   }
 

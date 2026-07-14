@@ -27,6 +27,7 @@ import 'sgp_glymphatic_agent_node.dart';
 import 'sgp_glymphatic_handshake.dart';
 import 'sgp_glymphatic_innovation_engine.dart';
 import 'sgp_glymphatic_monitor.dart';
+import 'sgp_glymphatic_phagophore_filter.dart';
 
 
 
@@ -150,6 +151,42 @@ class _GlymphaticPrunePlan {
 
 abstract final class SgpGlymphaticFlusher {
 
+  /// 특허 1·2호 Minor Flush — 오버레이 없이 Phagophore 미세 정제만 수행.
+  static Future<GlymphaticFlushReport> minorFlush({
+    required SgpGlymphaticAgentNode target,
+    required LegalOntologyGraph? ontology,
+    required List<String> ontologyAnchors,
+  }) async {
+    try {
+      if (ontology != null) {
+        target.inferOntologyLinks(ontology);
+      }
+      final pruned = PhagophoreFilter.phagophoreProcess(
+        target,
+        ontology: ontology,
+        ontologyAnchors: ontologyAnchors,
+      );
+      target.optimizeMemoryCache();
+      final alignment = target.semanticDeviation(ontologyAnchors);
+      return GlymphaticFlushReport(
+        prunedFragments: pruned,
+        cacheOptimized: true,
+        recoveredOntologyAlignment: (1.0 - alignment).clamp(0.0, 1.0),
+        success: true,
+        readyForSwap: target.readyForSwap,
+      );
+    } catch (e) {
+      return GlymphaticFlushReport(
+        prunedFragments: 0,
+        cacheOptimized: false,
+        recoveredOntologyAlignment: 0,
+        success: false,
+        readyForSwap: target.readyForSwap,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
   /// 온톨로지 기준 미연결·인과 파괴 파편 소거 + 핵심 가중치 Pruning.
 
   ///
@@ -218,12 +255,10 @@ abstract final class SgpGlymphaticFlusher {
 
         final prunedByPlan = _applyPrunePlan(target, plan);
 
-        final prunedNoise = target.pruneSemanticNoise(
-
+        final prunedNoise = PhagophoreFilter.phagophoreProcess(
+          target,
           ontology: ontology,
-
           ontologyAnchors: ontologyAnchors,
-
         );
 
         target.optimizeMemoryCache();
