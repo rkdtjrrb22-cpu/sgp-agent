@@ -627,6 +627,9 @@ class SgpTimelineWidget extends StatefulWidget {
     this.forceAssessment,
     this.onStartEvidenceNotice,
     this.onGenerateReport,
+    this.forceGuideRawText = '',
+    this.forceExecutionLogged = false,
+    this.onForceExecutionLogged,
   });
 
   final SgpProcedureTimeline timeline;
@@ -640,6 +643,9 @@ class SgpTimelineWidget extends StatefulWidget {
   final ConstitutionalForceAssessment? forceAssessment;
   final Future<void> Function()? onStartEvidenceNotice;
   final Future<void> Function()? onGenerateReport;
+  final String forceGuideRawText;
+  final bool forceExecutionLogged;
+  final ValueChanged<String>? onForceExecutionLogged;
 
   @override
   State<SgpTimelineWidget> createState() => _SgpTimelineWidgetState();
@@ -708,6 +714,9 @@ class _SgpTimelineWidgetState extends State<SgpTimelineWidget> {
                   forceAssessment: widget.forceAssessment,
                   onStartEvidenceNotice: widget.onStartEvidenceNotice,
                   onGenerateReport: widget.onGenerateReport,
+                  forceGuideRawText: widget.forceGuideRawText,
+                  forceExecutionLogged: widget.forceExecutionLogged,
+                  onForceExecutionLogged: widget.onForceExecutionLogged,
                 );
               },
             )
@@ -733,6 +742,9 @@ class _SgpTimelineWidgetState extends State<SgpTimelineWidget> {
                     forceAssessment: widget.forceAssessment,
                     onStartEvidenceNotice: widget.onStartEvidenceNotice,
                     onGenerateReport: widget.onGenerateReport,
+                    forceGuideRawText: widget.forceGuideRawText,
+                    forceExecutionLogged: widget.forceExecutionLogged,
+                    onForceExecutionLogged: widget.onForceExecutionLogged,
                   );
                 },
               ),
@@ -803,6 +815,9 @@ class _TimelineNodeTile extends StatelessWidget {
     this.forceAssessment,
     this.onStartEvidenceNotice,
     this.onGenerateReport,
+    this.forceGuideRawText = '',
+    this.forceExecutionLogged = false,
+    this.onForceExecutionLogged,
   });
 
   final SgpTimeTableNode node;
@@ -814,6 +829,9 @@ class _TimelineNodeTile extends StatelessWidget {
   final ConstitutionalForceAssessment? forceAssessment;
   final Future<void> Function()? onStartEvidenceNotice;
   final Future<void> Function()? onGenerateReport;
+  final String forceGuideRawText;
+  final bool forceExecutionLogged;
+  final ValueChanged<String>? onForceExecutionLogged;
 
   @override
   Widget build(BuildContext context) {
@@ -952,6 +970,9 @@ class _TimelineNodeTile extends StatelessWidget {
                         },
                         compact: true,
                         assessment: forceAssessment,
+                        rawText: forceGuideRawText,
+                        forceExecutionLogged: forceExecutionLogged,
+                        onForceExecutionLogged: onForceExecutionLogged,
                       ),
                     ],
                     if (node.id == 'evidence_notice' && onStartEvidenceNotice != null) ...[

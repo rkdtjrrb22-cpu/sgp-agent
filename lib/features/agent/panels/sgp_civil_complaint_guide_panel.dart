@@ -9,6 +9,10 @@ import 'package:flutter/services.dart';
 import '../sgp_app_theme.dart';
 import '../sgp_civil_complaint_branch.dart';
 import '../sgp_civil_complaint_data.dart';
+import '../sgp_civil_guidance_assembler.dart';
+import '../sgp_civil_non_intervention_filter.dart';
+import '../sgp_kgrag_router.dart';
+import '../widgets/sgp_civil_non_intervention_banner.dart';
 
 /// 스크롤 가능한 가이드 본문 (글래스 카드).
 class SgpCivilComplaintGuidePanel extends StatelessWidget {
@@ -16,37 +20,59 @@ class SgpCivilComplaintGuidePanel extends StatelessWidget {
     super.key,
     required this.route,
     this.rawText,
+    this.kgrag,
     this.onDismiss,
     this.embedded = true,
   });
 
   final CivilComplaintRouteResult route;
   final String? rawText;
+  final KgragReasoningResult? kgrag;
   final VoidCallback? onDismiss;
   final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final type = route.type;
-    final enforcement = rawText != null && rawText!.trim().isNotEmpty
-        ? route.inferEnforcement(rawText!)
+    final text = rawText ?? '';
+    final enforcement = text.trim().isNotEmpty
+        ? route.inferEnforcement(text)
         : null;
+    final civilHit = SgpCivilNonInterventionFilter.evaluate(
+      text,
+      routedTypeId: type.id,
+    );
+    final guidance = SgpCivilGuidanceAssembler.assemble(
+      route: route,
+      rawText: text,
+      precedentLines: [
+        for (final h in (kgrag?.precedentHits ?? const []).take(2))
+          CivilGuidancePrecedentLine(
+            court: h.court,
+            caseNo: h.caseNo,
+            holding: h.holding,
+          ),
+      ],
+    );
 
     return _SgpGlassGuideCard(
-      accentGradient: type.policeDispatchWarning
+      accentGradient: civilHit.matched || type.policeDispatchWarning
           ? const [SgpCivilGuideColors.dispatchWarningText, Color(0xFFFF8A65)]
           : const [SgpCivilGuideColors.neonCyan, SgpCivilGuideColors.emerald],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildHeader(context, type),
+          if (civilHit.matched) ...[
+            const SizedBox(height: 10),
+            SgpCivilNonInterventionBanner(hit: civilHit),
+          ] else if (type.policeDispatchWarning) ...[
+            const SizedBox(height: 10),
+            _buildDispatchWarning(),
+          ],
           if (route.matchedKeywords.isNotEmpty) ...[
             const SizedBox(height: 10),
             _buildKeywords(route),
-          ],
-          if (type.policeDispatchWarning) ...[
-            const SizedBox(height: 10),
-            _buildDispatchWarning(),
           ],
           if (enforcement != null) ...[
             const SizedBox(height: 10),
@@ -56,6 +82,8 @@ class SgpCivilComplaintGuidePanel extends StatelessWidget {
             const SizedBox(height: 10),
             _buildGoldenTimeAlert(),
           ],
+          const SizedBox(height: 14),
+          _buildGuidanceCard(context, guidance),
           const SizedBox(height: 14),
           _sectionTitle('해결 경로'),
           const SizedBox(height: 6),
@@ -87,6 +115,69 @@ class SgpCivilComplaintGuidePanel extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuidanceCard(BuildContext context, CivilGuidanceCard guidance) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: SgpCivilGuideColors.neonCyan.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '원클릭 안내문',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: SgpCivilGuideColors.neonCyan,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(text: guidance.plainText),
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('민원인 안내문이 클립보드에 복사되었습니다.'),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.copy, size: 16),
+                label: const Text('복사', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  foregroundColor: SgpCivilGuideColors.emerald,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            guidance.markdown,
+            textAlign: TextAlign.start,
+            style: const TextStyle(
+              fontSize: 11.5,
+              height: 1.5,
+              color: SgpCivilGuideColors.pureWhite,
+            ),
+          ),
         ],
       ),
     );

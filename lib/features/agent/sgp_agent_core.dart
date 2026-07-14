@@ -22,6 +22,9 @@ import 'sgp_agent_law_filters.dart';
 import 'sgp_agent_prompts.dart';
 import 'sgp_precedent_dictionary.dart';
 import 'sgp_legal_ontology_session.dart';
+import 'sgp_officer_defense_shield_assembler.dart';
+import 'sgp_constitutional_force_engine.dart';
+import 'sgp_physical_threat_level.dart';
 
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_agent_node.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_controller.dart';
@@ -750,11 +753,51 @@ class SgpAgentEngine {
     _isLoaded = true;
   }
 
+  /// 사후 물리력 보호막 패키지용 현장 스냅샷 (외근 중 누적 → 내근에서 다이얼로그).
+  ForceDefensePackageSnapshot? _forceDefenseSnapshot;
+
+  ForceDefensePackageSnapshot? get forceDefenseSnapshot => _forceDefenseSnapshot;
+
+  /// 외근 중 저항·물리력·무전 로그를 엔진에 고정 (인지 부하 UI와 분리).
+  void updateForceDefenseSnapshot({
+    required String rawText,
+    PhysicalThreatLevel? threatLevel,
+    PoliceForceTier? forceTier,
+    bool forceExecutionLogged = false,
+    String? forceExecutionNote,
+    bool isExcessive = false,
+  }) {
+    _forceDefenseSnapshot = ForceDefensePackageSnapshot.capture(
+      rawText: rawText,
+      threatLevel: threatLevel,
+      forceTier: forceTier,
+      forceExecutionLogged: forceExecutionLogged,
+      forceExecutionNote: forceExecutionNote,
+      isExcessive: isExcessive,
+    );
+  }
+
+  void clearForceDefenseSnapshot() => _forceDefenseSnapshot = null;
+
+  /// 스냅샷 → 사후 구제 패키지 마크다운 조립.
+  OfficerDefenseShieldPack? buildForceDefensePack({
+    String officerIdHint = '현장 수사관',
+    DateTime? generatedAt,
+  }) {
+    final snap = _forceDefenseSnapshot;
+    if (snap == null) return null;
+    return snap.toPack(
+      officerIdHint: officerIdHint,
+      generatedAt: generatedAt,
+    );
+  }
+
   /// 화면 이탈 시 호출 — RAM 점유 즉시 해제.
   void dispose() {
     stopGlymphaticMonitorLoop();
     _modelWeights = null;
     _isLoaded = false;
+    _forceDefenseSnapshot = null;
     _glymphaticMain.clearContext();
     _glymphaticShadow.clearContext();
   }

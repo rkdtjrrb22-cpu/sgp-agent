@@ -86,12 +86,17 @@ abstract final class SgpCivilComplaintBranchRouter {
 
       case 'CC-TYPE-NOISE':
       case 'CC-TYPE-ILLEGAL-PARKING':
+      case 'CC-TYPE-PRIVATE-PARKING':
       case 'CC-TYPE-STREET-VENDOR':
       case 'CC-TYPE-CIVIL-DISPUTE':
-        if (_violenceKw.hasMatch(text)) {
+        if (_violenceKw.hasMatch(text) ||
+            (type.id == 'CC-TYPE-PRIVATE-PARKING' &&
+                RegExp(r'(재물손괴|손괴|바퀴.*깨|긁)').hasMatch(text))) {
           branch = CivilComplaintEnforcementBranch.criminalInvestigation;
           nodes.add('ORG-POLICE-CRIMINAL-INVEST');
-          rationale = '행정 민원이나 폭력·상해 정황 동반 — 형사과 수사 병행.';
+          rationale = type.id == 'CC-TYPE-PRIVATE-PARKING'
+              ? '사유지 주차 분쟁 + 손괴·폭력 정황 — 재물손괴·폭행 등 형사 병행 검토.'
+              : '행정 민원이나 폭력·상해 정황 동반 — 형사과 수사 병행.';
           confidence = 0.85;
         } else {
           branch = CivilComplaintEnforcementBranch.localGovTransfer;
@@ -101,6 +106,18 @@ abstract final class SgpCivilComplaintBranchRouter {
               : '지자체·주민센터 행정 소관 — 경찰 이관 안내.';
           confidence = _noiseOnlyKw.hasMatch(text) ? 0.88 : 0.72;
         }
+        break;
+
+      case 'CC-TYPE-DATING-STALKING':
+        branch = CivilComplaintEnforcementBranch.criminalInvestigation;
+        nodes.addAll([
+          'ORG-POLICE-CRIMINAL-INVEST',
+          'KR-STALKING-ACT',
+        ]);
+        rationale =
+            '데이트폭력·스토킹 — 긴급응급조치·잠정조치(접근금지) 요건 검토, '
+            '여성청소년과·형사과 우선.';
+        confidence = 0.9;
         break;
 
       case 'CC-TYPE-COMPLAINT-INTAKE':

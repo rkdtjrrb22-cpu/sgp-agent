@@ -61,12 +61,18 @@ class SgpPhysicalForceGuideWidget extends StatelessWidget {
     required this.onLevelChanged,
     this.compact = false,
     this.assessment,
+    this.rawText = '',
+    this.forceExecutionLogged = false,
+    this.onForceExecutionLogged,
   });
 
   final PhysicalThreatLevel? selectedLevel;
   final ValueChanged<PhysicalThreatLevel> onLevelChanged;
   final bool compact;
   final ConstitutionalForceAssessment? assessment;
+  final String rawText;
+  final bool forceExecutionLogged;
+  final ValueChanged<String>? onForceExecutionLogged;
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +167,12 @@ class SgpPhysicalForceGuideWidget extends StatelessWidget {
         ],
         if (response != null) ...[
           const SizedBox(height: 8),
-          _ResponsePanel(response: response, compact: compact),
+          _ResponsePanel(
+            response: response,
+            compact: compact,
+            onForceExecutionLogged: onForceExecutionLogged,
+            forceExecutionLogged: forceExecutionLogged,
+          ),
         ],
       ],
     );
@@ -169,10 +180,17 @@ class SgpPhysicalForceGuideWidget extends StatelessWidget {
 }
 
 class _ResponsePanel extends StatelessWidget {
-  const _ResponsePanel({required this.response, required this.compact});
+  const _ResponsePanel({
+    required this.response,
+    required this.compact,
+    this.onForceExecutionLogged,
+    this.forceExecutionLogged = false,
+  });
 
   final PhysicalForceResponse response;
   final bool compact;
+  final ValueChanged<String>? onForceExecutionLogged;
+  final bool forceExecutionLogged;
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +238,44 @@ class _ResponsePanel extends StatelessWidget {
             color,
             highlight: true,
           ),
+          if (onForceExecutionLogged != null &&
+              response.level.stageNumber >= 2) ...[
+            const SizedBox(height: 8),
+            Text(
+              forceExecutionLogged
+                  ? '물리력 집행 기록됨 (사후 패키지 → 내근 방패)'
+                  : '물리력 집행 기록',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                ActionChip(
+                  label: Text(
+                    '제압 기록',
+                    style: TextStyle(fontSize: 10, color: color),
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => onForceExecutionLogged!('물리력 제압'),
+                ),
+                if (response.level.stageNumber >= 4)
+                  ActionChip(
+                    label: Text(
+                      '테이저 발사',
+                      style: TextStyle(fontSize: 10, color: color),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onForceExecutionLogged!('테이저건 발사'),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

@@ -6,12 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'sgp_app_theme.dart';
+import 'sgp_officer_defense_shield_assembler.dart';
 import 'sgp_report_generator.dart';
 
 /// 보고서 팝업 표시 + 클립보드 자동 복사.
 Future<void> showLegalReportDialog(
   BuildContext context, {
   required SgpLegalReport report,
+  OfficerDefenseShieldPack? defensePack,
+  Future<void> Function()? onOpenDefensePackage,
 }) async {
   await Clipboard.setData(ClipboardData(text: report.combinedPlainText));
 
@@ -19,14 +22,24 @@ Future<void> showLegalReportDialog(
 
   await showDialog<void>(
     context: context,
-    builder: (ctx) => _LegalReportDialog(report: report),
+    builder: (ctx) => _LegalReportDialog(
+      report: report,
+      defensePack: defensePack,
+      onOpenDefensePackage: onOpenDefensePackage,
+    ),
   );
 }
 
 class _LegalReportDialog extends StatefulWidget {
-  const _LegalReportDialog({required this.report});
+  const _LegalReportDialog({
+    required this.report,
+    this.defensePack,
+    this.onOpenDefensePackage,
+  });
 
   final SgpLegalReport report;
+  final OfficerDefenseShieldPack? defensePack;
+  final Future<void> Function()? onOpenDefensePackage;
 
   @override
   State<_LegalReportDialog> createState() => _LegalReportDialogState();
@@ -114,6 +127,21 @@ class _LegalReportDialogState extends State<_LegalReportDialog>
                             ),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        tooltip: '사후 물리력 보호막 패키지',
+                        icon: Icon(
+                          Icons.shield,
+                          color: widget.defensePack != null
+                              ? const Color(0xFF42A5F5)
+                              : SgpAppTheme.textSecondary,
+                        ),
+                        onPressed: widget.onOpenDefensePackage == null
+                            ? null
+                            : () async {
+                                Navigator.pop(context);
+                                await widget.onOpenDefensePackage!();
+                              },
                       ),
                       IconButton(
                         icon: const Icon(

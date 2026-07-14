@@ -32,9 +32,15 @@ import 'sgp_demo_field_scenario.dart';
 import 'sgp_civil_complaint_loader.dart';
 import 'sgp_civil_complaint_router.dart';
 import 'sgp_civil_complaint_guide.dart';
+import 'sgp_civil_complaint_demo_scenarios.dart';
+import 'sgp_civil_non_intervention_filter.dart';
 import 'sgp_medical_custody_engine.dart';
 import 'panels/sgp_medical_transfer_guide_panel.dart';
 import 'sgp_civil_complaint_data.dart';
+import 'widgets/sgp_civil_non_intervention_banner.dart';
+import 'widgets/sgp_officer_legal_shield_banner.dart';
+import 'sgp_officer_defense_shield_assembler.dart';
+import 'sgp_legal_defense_package_dialog.dart';
 import 'sgp_kgrag_assets.dart';
 import 'sgp_kgrag_router.dart';
 import '../control/sgp_anti_corruption_filter.dart';
@@ -130,9 +136,13 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   PoliceForceTier? _selectedForceTier;
   bool _forceFlashExcessive = false;
   bool _forceAlertShownForCurrentExcess = false;
+  bool _forceExecutionLogged = false;
+  String? _forceExecutionNote;
   CivilComplaintNodePack? _civilComplaintPack;
   CivilComplaintRouteResult? _civilComplaintRoute;
   bool _civilComplaintDismissed = false;
+  CivilNonInterventionHit _civilNonIntervention =
+      CivilNonInterventionHit.none;
   CivilComplaintRouteResult? _medicalTransferRoute;
   SgpMedicalTransferSession? _medicalTransferSession;
   MedicalCustodyDeadline? _medicalTransferDeadline;
@@ -620,8 +630,12 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     if (pack == null) return;
     final text = _rawTextController.text.trim();
     if (text.isEmpty || _civilComplaintDismissed) {
-      if (_civilComplaintRoute != null && mounted) {
-        setState(() => _civilComplaintRoute = null);
+      if (mounted &&
+          (_civilComplaintRoute != null || _civilNonIntervention.matched)) {
+        setState(() {
+          _civilComplaintRoute = null;
+          _civilNonIntervention = CivilNonInterventionHit.none;
+        });
       }
       return;
     }
@@ -631,14 +645,24 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       pack,
       graph: graph,
     );
+    final civilHit = SgpCivilNonInterventionFilter.evaluate(
+      text,
+      routedTypeId: route?.type.id,
+    );
     if (!mounted) return;
-    if (route != null && route.isHighConfidence && !route.type.isMedicalTransferGuide) {
+    if (route != null &&
+        route.isHighConfidence &&
+        !route.type.isMedicalTransferGuide) {
       setState(() {
         _civilComplaintRoute = route;
         _civilComplaintDismissed = false;
+        _civilNonIntervention = civilHit;
       });
-    } else if (_civilComplaintRoute != null) {
-      setState(() => _civilComplaintRoute = null);
+    } else {
+      setState(() {
+        _civilComplaintRoute = null;
+        _civilNonIntervention = civilHit;
+      });
     }
   }
 
@@ -648,44 +672,97 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       _showSnack('민원 노드 로드 중…');
       return;
     }
-    final demos = <(String, String)>[
-      ('면허증 분실', '면허증 잃어버렸는데 어디서 만들어요?'),
-      ('주차 분쟁', '옆집이랑 주차 때문에 싸웠는데 경찰이 와서 딱지 좀 떼줘요'),
-      ('층간소음', '윗집 층간소음이 너무 심해서 경찰 좀 불러주세요'),
-      ('사이버 사기', '보이스피싱으로 돈 이체당했어요 신고하려고요'),
-      ('실종 신고', '가출한 아들 찾으러 왔습니다 실종 신고'),
-      ('유실물', '지갑 분실했는데 Lost112 어디서 찾나요'),
-    ];
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                '종합 민원 시연 시나리오',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-            ),
-            ...demos.map(
-              (d) => ListTile(
-                title: Text(d.$1),
-                subtitle: Text(d.$2, style: const TextStyle(fontSize: 12)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _rawTextController.text = d.$2;
-                  _civilComplaintDismissed = false;
-                  _applyRuleMapping();
-                },
-              ),
-            ),
-          ],
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.72,
+          minChildSize: 0.4,
+          maxChildSize: 0.92,
+          builder: (context, scrollController) {
+            return ListView(
+              controller: scrollController,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    '종합 민원 시연 시나리오 (8)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    '터치 시 현장 텍스트·가이드·원클릭 안내문이 즉시 조립됩니다.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                ...SgpCivilComplaintDemoScenarios.all.map(
+                  (d) => ListTile(
+                    leading: CircleAvatar(
+                      radius: 14,
+                      backgroundColor: d.civilNonInterventionHint
+                          ? SgpFieldColors.cautionOrange.withValues(alpha: 0.2)
+                          : SgpAppTheme.accent.withValues(alpha: 0.15),
+                      child: Text(
+                        d.title.split('.').first,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: d.civilNonInterventionHint
+                              ? SgpFieldColors.cautionOrange
+                              : SgpAppTheme.accent,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      d.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${d.subtitle}\n${d.radioText}',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, height: 1.35),
+                    ),
+                    isThreeLine: true,
+                    trailing: d.civilNonInterventionHint
+                        ? const Icon(
+                            Icons.warning_amber_rounded,
+                            color: SgpFieldColors.cautionOrange,
+                            size: 20,
+                          )
+                        : null,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _applyComplaintDemoScenario(d);
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
+  }
+
+  void _applyComplaintDemoScenario(CivilComplaintDemoScenario demo) {
+    _rawTextController.text = demo.radioText;
+    _civilComplaintDismissed = false;
+    _engine.ingestGlymphaticTraffic(demo.radioText);
+    _applyRuleMapping();
+    _showSnack('${demo.title} 로드');
   }
 
   Future<void> _openMedicalTransferSheet() async {
@@ -841,8 +918,17 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       setState(() {
         _forceAssessment = assessment;
         _forceFlashExcessive = excessive;
+        if (detectedForce != null && detectedForce.stageNumber >= 2) {
+          _forceExecutionLogged = true;
+          _forceExecutionNote ??= detectedForce.label;
+        }
       });
     }
+    _syncForceDefenseSnapshot(
+      resistance: resistance,
+      forceTier: forceTier,
+      isExcessive: excessive,
+    );
 
     if (excessive && !_forceAlertShownForCurrentExcess && mounted) {
       _forceAlertShownForCurrentExcess = true;
@@ -861,9 +947,72 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
         ResistanceStage.compliance;
   }
 
+  void _syncForceDefenseSnapshot({
+    ResistanceStage? resistance,
+    PoliceForceTier? forceTier,
+    bool isExcessive = false,
+  }) {
+    final threat = _procedureTimeline?.physicalThreatLevel ??
+        (resistance != null
+            ? PhysicalThreatLevelBridge.fromResistanceStage(resistance)
+            : null);
+    _engine.updateForceDefenseSnapshot(
+      rawText: _rawTextController.text,
+      threatLevel: threat,
+      forceTier: forceTier ?? _selectedForceTier,
+      forceExecutionLogged: _forceExecutionLogged,
+      forceExecutionNote: _forceExecutionNote,
+      isExcessive: isExcessive || (_forceAssessment?.isExcessive ?? false),
+    );
+  }
+
+  Future<void> _openLegalDefensePackage() async {
+    _syncForceDefenseSnapshot(
+      resistance: _forceAssessment?.resistanceStage,
+      forceTier: _forceAssessment?.forceTier ?? _selectedForceTier,
+      isExcessive: _forceAssessment?.isExcessive ?? false,
+    );
+    final pack = _engine.buildForceDefensePack();
+    if (pack == null ||
+        !(_engine.forceDefenseSnapshot?.hasUsableDefenseData ?? false)) {
+      _showSnack(
+        '보호막 스냅샷 없음 — 외근에서 저항 단계·물리력 기록을 남긴 뒤 내근에서 열어주세요.',
+      );
+      return;
+    }
+    await showLegalDefensePackageDialog(context, pack: pack);
+  }
+
   void _onForceTierChanged(PoliceForceTier tier) {
-    setState(() => _selectedForceTier = tier);
+    setState(() {
+      _selectedForceTier = tier;
+      if (tier.stageNumber >= 2) {
+        _forceExecutionLogged = true;
+        _forceExecutionNote = tier.label;
+      }
+    });
     _refreshForceAssessment();
+  }
+
+  void _onForceExecutionLogged(String note) {
+    setState(() {
+      _forceExecutionLogged = true;
+      _forceExecutionNote = note;
+    });
+    if (_procedureTimeline != null) {
+      setState(() {
+        _procedureTimeline = _procedureTimeline!.toggleCheck(
+          'physical_force',
+          'force_proportionality',
+          true,
+        );
+      });
+    }
+    _syncForceDefenseSnapshot(
+      resistance: _forceAssessment?.resistanceStage,
+      forceTier: _selectedForceTier ?? _forceAssessment?.forceTier,
+    );
+    _showSnack('물리력 집행 기록: $note — 스냅샷 저장(사후 패키지는 내근 방패)');
   }
 
   Future<void> _showForceScenarioPicker() async {
@@ -912,6 +1061,11 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       _rawTextController.text = picked.radioText;
       _selectedForceTier = null;
       _forceAlertShownForCurrentExcess = false;
+      _forceExecutionLogged = SgpConstitutionalForceEngine.detectForceTierFromText(
+            picked.radioText,
+          ) !=
+          null;
+      _forceExecutionNote = null;
       _applyRuleMapping();
       _refreshForceAssessment();
       final a = _forceAssessment;
@@ -1440,7 +1594,12 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       evidenceCoC: _evidenceCoC,
     );
     final report = SgpReportGenerator.generate(input);
-    await showLegalReportDialog(context, report: report);
+    await showLegalReportDialog(
+      context,
+      report: report,
+      defensePack: _engine.buildForceDefensePack(),
+      onOpenDefensePackage: _openLegalDefensePackage,
+    );
     if (mounted && _procedureTimeline != null) {
       setState(() {
         _procedureTimeline = _procedureTimeline!
@@ -1889,9 +2048,22 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
             onPressed: _showComplaintScenarioPicker,
           ),
           IconButton(
-            tooltip: '5단계 물리력 시연 프리셋',
-            icon: const Icon(Icons.shield_outlined),
-            onPressed: _showForceScenarioPicker,
+            tooltip: _operationalMode == SgpOperationalMode.investigation
+                ? '사후 물리력 보호막 패키지'
+                : '5단계 물리력 시연 프리셋',
+            icon: Icon(
+              _operationalMode == SgpOperationalMode.investigation
+                  ? Icons.shield
+                  : Icons.shield_outlined,
+              color: _operationalMode == SgpOperationalMode.investigation &&
+                      (_engine.forceDefenseSnapshot?.hasUsableDefenseData ??
+                          false)
+                  ? const Color(0xFF42A5F5)
+                  : null,
+            ),
+            onPressed: _operationalMode == SgpOperationalMode.investigation
+                ? _openLegalDefensePackage
+                : _showForceScenarioPicker,
           ),
           IconButton(
             tooltip: '현장 시연 시나리오 (Mock)',
@@ -1986,6 +2158,15 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
             ),
             const SizedBox(height: 12),
             if (_operationalMode == SgpOperationalMode.field) ...[
+                  SgpOfficerLegalShieldBanner(
+                    resistanceStage: _forceAssessment?.resistanceStage,
+                    threatLevel: _procedureTimeline?.physicalThreatLevel,
+                  ),
+                  if (_forceAssessment != null &&
+                      SgpOfficerDefenseShieldAssembler.isLegalAidShieldActive(
+                        _forceAssessment!.resistanceStage,
+                      ))
+                    const SizedBox(height: 8),
                   SgpConstitutionalForceIndicator(
                     assessment: _forceAssessment,
                     selectedForceTier: _selectedForceTier,
@@ -2019,24 +2200,34 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                         });
                       },
                     ),
-                  ] else if (_civilComplaintRoute != null) ...[
+                  ] else if (_civilComplaintRoute != null ||
+                      _civilNonIntervention.matched) ...[
                     const SizedBox(height: 12),
-                    SgpCivilComplaintGuidePanel(
-                      route: _civilComplaintRoute!,
-                      rawText: _rawTextController.text,
-                      onDismiss: () => setState(() {
-                        _civilComplaintRoute = null;
-                        _civilComplaintDismissed = true;
-                      }),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: _openCivilComplaintGuideScreen,
-                        icon: const Icon(Icons.open_in_full, size: 16),
-                        label: const Text('전체 화면 가이드'),
+                    if (_civilNonIntervention.matched &&
+                        _civilComplaintRoute == null) ...[
+                      SgpCivilNonInterventionBanner(hit: _civilNonIntervention),
+                      const SizedBox(height: 8),
+                    ],
+                    if (_civilComplaintRoute != null) ...[
+                      SgpCivilComplaintGuidePanel(
+                        route: _civilComplaintRoute!,
+                        rawText: _rawTextController.text,
+                        kgrag: _kgragResult,
+                        onDismiss: () => setState(() {
+                          _civilComplaintRoute = null;
+                          _civilComplaintDismissed = true;
+                          _civilNonIntervention = CivilNonInterventionHit.none;
+                        }),
                       ),
-                    ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: _openCivilComplaintGuideScreen,
+                          icon: const Icon(Icons.open_in_full, size: 16),
+                          label: const Text('전체 화면 가이드'),
+                        ),
+                      ),
+                    ],
                   ],
             ],
             const SizedBox(height: 12),
@@ -2147,6 +2338,9 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
                 forceAssessment: _forceAssessment,
                 onStartEvidenceNotice: _onStartEvidenceNotice,
                 onGenerateReport: _onGenerateLegalReport,
+                forceGuideRawText: _rawTextController.text,
+                forceExecutionLogged: _forceExecutionLogged,
+                onForceExecutionLogged: _onForceExecutionLogged,
               ),
             ],
             const SizedBox(height: 12),

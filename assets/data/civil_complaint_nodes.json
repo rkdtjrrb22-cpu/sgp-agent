@@ -200,9 +200,16 @@
       "parent_id": "CC-CAT-TRANSFER",
       "category": "타 기관 이관",
       "title": "단순 민사 분쟁",
-      "keywords": ["민사", "손해배상", "계약", "돈", "빌려", "채무"],
-      "intent_patterns": ["돈.*갚", "손해.*배상"],
+      "keywords": ["민사", "손해배상", "계약", "돈", "빌려", "채무", "보증금", "임대차", "전세", "월세", "갚지", "안 갚", "돌려"],
+      "intent_patterns": ["돈.*갚", "보증금.*돌", "임대차.*분쟁", "채무.*독촉", "손해.*배상"],
       "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LEGAL-AID",
+          "agency_name": "대한법률구조공단",
+          "scope": "legal_aid",
+          "phone": "132",
+          "transfer": true
+        },
         {
           "agency_id": "AGENCY-LOCAL-GOV",
           "agency_name": "관할 시·군·구청 민원실",
@@ -217,11 +224,11 @@
         }
       ],
       "required_documents": [
-        { "doc_type": "contract_copy", "label": "계약서·차용증 등", "required": false }
+        { "doc_type": "contract_copy", "label": "계약서·차용증·임대차계약서 등", "required": false }
       ],
-      "admin_guide_lv8": "해당 사안은 민사 사안으로 경찰 강제력 행사가 제한됨. 관할 지자체 민원실·110번 원클릭 연결 경로 제시.",
+      "admin_guide_lv8": "해당 사안은 민사 사안으로 경찰 강제력 행사가 제한됨. 법률구조공단(132)·지자체 민원실·110 안내. 폭행·협박 동반 시에만 형사 병행.",
       "police_dispatch_warning": true,
-      "phone": "110"
+      "phone": "132"
     },
     {
       "id": "CC-TYPE-NOISE",
@@ -428,6 +435,72 @@
       ],
       "admin_guide_lv8": "개물림·교상 — 형사과 수사 착수. 동물보호법 제16조 위반·과실치상(형법 제266조) 병행 검토. 응급처치·병원 기록 즉시 확보.",
       "phone": "182"
+    },
+    {
+      "id": "CC-TYPE-PRIVATE-PARKING",
+      "parent_id": "CC-CAT-TRANSFER",
+      "category": "타 기관 이관",
+      "title": "사유지 무단주차·주차 분쟁",
+      "keywords": ["사유지", "무단주차", "내 땅", "아파트 주차", "주차 막아", "재물손괴", "바퀴", "견인"],
+      "intent_patterns": ["사유지.*주차", "무단.*주차", "주차.*손괴", "도로교통.*재물"],
+      "jurisdictions": [
+        {
+          "agency_id": "AGENCY-LOCAL-GOV",
+          "agency_name": "관할 구청 주차관리과",
+          "scope": "parking_admin",
+          "transfer": true
+        },
+        {
+          "agency_id": "AGENCY-POLICE-CIVIL-DESK",
+          "agency_name": "경찰서 지구대·파출소 (교통소통·형사 여부 판단)",
+          "scope": "field_triage",
+          "phone": "112"
+        },
+        {
+          "agency_id": "AGENCY-LEGAL-AID",
+          "agency_name": "대한법률구조공단",
+          "scope": "civil_counsel",
+          "phone": "132",
+          "transfer": true
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "land_photo", "label": "사유지·차단 표지 사진", "required": false },
+        { "doc_type": "damage_photo", "label": "손괴·피해 사진(해당 시)", "required": false }
+      ],
+      "admin_guide_lv8": "사유지 무단주차: 도로교통법 단속 대상이 아닌 사유지 분쟁은 원칙 민사. 임의 견인·바퀴잠금으로 상대방 차량을 손괴하면 형법 재물손괴 검토. 교통소통 지장·폭력 시에만 경직법·형사 개입.",
+      "police_dispatch_warning": true,
+      "phone": "110"
+    },
+    {
+      "id": "CC-TYPE-DATING-STALKING",
+      "parent_id": "CC-CAT-CRIMINAL",
+      "category": "수사·형사 민원",
+      "title": "데이트폭력·스토킹 잠정조치",
+      "keywords": ["데이트폭력", "스토킹", "잠정조치", "접근금지", "전 애인", "헤어진", "연락 강요", "미행", "협박"],
+      "intent_patterns": ["데이트.*폭력", "스토킹.*신고", "잠정조치", "접근.*금지"],
+      "jurisdictions": [
+        {
+          "agency_id": "ORG-POLICE-CRIMINAL-INVEST",
+          "agency_name": "경찰서 여성청소년과·형사과",
+          "scope": "investigation",
+          "phone": "112"
+        },
+        {
+          "agency_id": "AGENCY-STALKING-HOTLINE",
+          "agency_name": "스토킹·가정폭력 상담(1366·경찰 112)",
+          "scope": "victim_support",
+          "phone": "1366"
+        }
+      ],
+      "required_documents": [
+        { "doc_type": "message_log", "label": "문자·SNS·통화 기록" },
+        { "doc_type": "injury_photo", "label": "상해·손괴 사진(해당 시)", "required": false },
+        { "doc_type": "provisional_request", "label": "잠정조치 신청 의사 확인서", "required": false }
+      ],
+      "admin_guide_lv8": "스토킹처벌법·데이트폭력: 긴급응급조치·잠정조치(접근금지 등) 요건 즉시 검토. 피해자 안전 우선, 112 신고·증거 보전·상담 연계.",
+      "switch_to_golden_time_profile": false,
+      "phone": "112"
     }
   ]
 }

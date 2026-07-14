@@ -3,6 +3,7 @@ library;
 
 import 'sgp_agent_core.dart';
 import 'sgp_court_precedents_ota.dart';
+import 'sgp_officer_defense_shield_assembler.dart';
 import 'sgp_physical_force_guide.dart';
 import 'sgp_precedent_dictionary.dart';
 import 'sgp_procedure_timeline.dart';
@@ -128,6 +129,10 @@ class SgpReportGenerator {
         _buildVictimSeparation(input, precedents, inlineCited));
     _section(buf, '3. 물리력 대응',
         _buildPhysicalForce(input, precedents, inlineCited));
+    final defenseLines = _buildOfficerDefenseShield(input);
+    if (defenseLines.isNotEmpty) {
+      _section(buf, '3-A. 독직폭행 피소 대비 방어막', defenseLines);
+    }
     _section(buf, '4. 현장 채증 법적 고지',
         _buildEvidenceNotice(input, precedents, inlineCited));
     if (input.evidenceCoC != null) {
@@ -407,6 +412,32 @@ class SgpReportGenerator {
       }
     }
     return lines;
+  }
+
+  static List<String> _buildOfficerDefenseShield(SgpReportInput input) {
+    final level = input.timeline?.physicalThreatLevel;
+    if (level == null || level.stageNumber < 2) return const [];
+
+    final forceTier = level.resistanceStage.defaultForceTier;
+    final pack = SgpOfficerDefenseShieldAssembler.assemble(
+      threatLevel: level,
+      forceTier: forceTier,
+      rawText: input.rawText,
+      generatedAt: input.generatedAt,
+    );
+    return [
+      '- **보호막**: ${SgpOfficerDefenseShieldAssembler.isLegalAidShieldActiveFromThreat(level) ? "법률 조력 보호막 활성(3단계↑)" : "방어막 탭 준비(2단계↑)"}',
+      '- **타임라인**: ${pack.timelineEntries.map((e) => e.arrowLine).join(" ➔ ")}',
+      '- **법리 팩**: 경직법 제11조의5 · 형법 제20조 · 공무집행방해 역고소',
+      '- **출력**: 디지털 공무집행 무결성 보고서(CoC) · 법률비용보험 신청서 (원클릭 복사)',
+      '',
+      '### 맞대응 법리 요약',
+      ...pack.legalDefenseMarkdown
+          .split('\n')
+          .where((l) => l.trim().isNotEmpty)
+          .take(18)
+          .map((l) => l.startsWith('#') ? l : l),
+    ];
   }
 
   static List<String> _buildEvidenceNotice(
