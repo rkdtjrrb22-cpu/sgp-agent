@@ -18,6 +18,32 @@ import 'sgp_glymphatic_agent_node.dart';
 abstract final class PhagophoreFilter {
   static const String architectSignature = 'INSP_KANG_SG_4066';
 
+  /// Stage 5 LawExtractor — 텍스트 입력에서 무관 파편·군소리 제거.
+  ///
+  /// PDF 의사코드 `PhagophoreFilter.pruneUnlinkedFragments(textInput)` 진입점.
+  static String pruneUnlinkedFragments(String textInput) {
+    var t = textInput.trim();
+    if (t.isEmpty) return t;
+    // 군소리·무관 담화 토큰 소거
+    const noise = <String>[
+      '아',
+      '어',
+      '그',
+      '뭐',
+      '그냥',
+      '막',
+      '약간',
+      '뭐랄까',
+      '음',
+      '응',
+    ];
+    for (final n in noise) {
+      t = t.replaceAll(RegExp('(?:^|\\s)$n(?:\\s|\$)'), ' ');
+    }
+    t = t.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+    return t;
+  }
+
   /// 온톨로지 미매핑·인과 파괴 파편을 강제 소거하고 소거 개수를 반환한다.
   static int phagophoreProcess(
     SgpGlymphaticAgentNode target, {

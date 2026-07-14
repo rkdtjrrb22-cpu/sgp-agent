@@ -14,6 +14,7 @@ import 'sgp_kgrag_router.dart';
 import '../control/sgp_anti_corruption_filter.dart';
 import '../evidence/sgp_evidence_coc_engine.dart';
 import '../glymphatic/sgp_glymphatic_innovation_engine.dart';
+import 'sgp_law_extractor.dart';
 
 /// 보고서 생성에 필요한 현장 세션 데이터.
 class SgpReportInput {
@@ -27,6 +28,7 @@ class SgpReportInput {
     this.medicalTransferSession,
     this.kgragReasoning,
     this.evidenceCoC,
+    this.hierarchicalLawSet,
   });
 
   final String rawText;
@@ -40,6 +42,9 @@ class SgpReportInput {
 
   /// 디지털 증거 연속성 (유치인 custody와 분리된 evidenceCoC).
   final EvidenceCoCSession? evidenceCoC;
+
+  /// Stage 5 Hierarchical Law Extractor 결과 슬롯.
+  final HierarchicalLawSet? hierarchicalLawSet;
 
   /// 저장 기록·파이프라인 JSON에서 복원.
   factory SgpReportInput.fromSessionJson(Map<String, dynamic> json) {
@@ -169,6 +174,18 @@ class SgpReportGenerator {
       _section(buf, '7. 추가 인용 대법원 판례 요지', _buildPrecedentBlock(remaining));
       _section(buf, '8. 절차 이행 현황', _buildProcedureChecklist(input));
       _section(buf, '9. 수사관 확인·서명', _buildOfficerConfirmation(input.generatedAt));
+    }
+
+    final lawSet = input.hierarchicalLawSet ??
+        (input.rawText.trim().isEmpty
+            ? null
+            : SgpLawExtractor.extract(input.rawText));
+    if (lawSet != null && !lawSet.isEmpty) {
+      _section(
+        buf,
+        '계층형 법률 추출 (SgpLawExtractor LV1–LV4)',
+        lawSet.toMarkdownSummary().split('\n'),
+      );
     }
 
     // 공식 서류는 markdown 본문에 이어붙이지 않는다 —

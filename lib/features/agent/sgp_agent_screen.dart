@@ -39,7 +39,10 @@ import 'panels/sgp_medical_transfer_guide_panel.dart';
 import 'sgp_civil_complaint_data.dart';
 import 'widgets/sgp_civil_non_intervention_banner.dart';
 import 'widgets/sgp_officer_legal_shield_banner.dart';
+import 'widgets/sgp_law_snapshot_offline_banner.dart';
 import 'sgp_officer_defense_shield_assembler.dart';
+import 'sgp_law_offgrid_sync.dart';
+import 'sgp_law_extractor.dart';
 import 'sgp_legal_defense_package_dialog.dart';
 import 'sgp_kgrag_assets.dart';
 import 'sgp_kgrag_router.dart';
@@ -166,6 +169,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   GlymphaticDashboardSnapshot? _glymphaticSnapshot;
   EvidenceCoCSession? _evidenceCoC;
   EvidenceScenarioPipelineResult? _evidencePipeline;
+  late final SgpLawOffGridSync _lawOffGrid;
+  HierarchicalLawSet? _hierarchicalLawSet;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -183,6 +188,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       if (payload.trim().isEmpty) return;
       _engine.ingestGlymphaticTraffic(payload);
     };
+    _lawOffGrid = SgpLawOffGridSync(forbidsNetworkEgress: true);
+    unawaited(_lawOffGrid.bootstrap());
     _initEngine();
     _loadPrecedentDictionary();
     _initCourtPrecedentsOta();
@@ -417,6 +424,20 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _refreshAntiCorruption();
     _refreshStatuteDomain();
     _refreshForensicAndCustody();
+    _refreshHierarchicalLaw();
+  }
+
+  void _refreshHierarchicalLaw() {
+    final text = _rawTextController.text.trim();
+    if (text.isEmpty) {
+      if (_hierarchicalLawSet != null && mounted) {
+        setState(() => _hierarchicalLawSet = null);
+      }
+      return;
+    }
+    final set = _lawOffGrid.extractFromFieldText(text);
+    if (!mounted) return;
+    setState(() => _hierarchicalLawSet = set);
   }
 
   bool _timelineCheckDone(String nodeId, String checkId) {
@@ -1592,6 +1613,10 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
       medicalTransferSession: _medicalTransferSession,
       kgragReasoning: _kgragResult,
       evidenceCoC: _evidenceCoC,
+      hierarchicalLawSet: _hierarchicalLawSet ??
+          (_rawTextController.text.trim().isEmpty
+              ? null
+              : SgpLawExtractor.extract(_rawTextController.text)),
     );
     final report = SgpReportGenerator.generate(input);
     await showLegalReportDialog(
@@ -2097,6 +2122,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
               mode: _operationalMode,
               onChanged: (mode) => setState(() => _operationalMode = mode),
             ),
+            const SizedBox(height: 8),
+            SgpLawSnapshotOfflineBanner(sync: _lawOffGrid),
             const SizedBox(height: 12),
             if (_evidenceCoC != null) ...[
               SgpEvidenceCoCTrafficBanner(
