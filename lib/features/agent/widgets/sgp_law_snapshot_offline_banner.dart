@@ -18,32 +18,43 @@ class SgpLawSnapshotOfflineBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!sync.isOfflineMode) return const SizedBox.shrink();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A237E).withValues(alpha: 0.28),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFF9FA8DA).withValues(alpha: 0.45),
+    return Semantics(
+      label: sync.subtleBannerLabel,
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 36),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A237E).withValues(alpha: 0.28),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: const Color(0xFF9FA8DA).withValues(alpha: 0.45),
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.shield_moon_outlined, size: 16, color: Colors.indigo.shade100),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              sync.subtleBannerLabel,
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-                color: Colors.indigo.shade50,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.shield_moon_outlined,
+              size: 16,
+              color: Colors.indigo.shade100,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                sync.subtleBannerLabel,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.indigo.shade50,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

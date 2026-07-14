@@ -160,36 +160,74 @@ class HierarchicalLawSet {
 
 /// Lysosome 런타임 — 다단 온톨로지 트리 백트래킹·노드 융해.
 abstract final class LawOntology {
+  static List<HierarchicalLawNode> _lv1 = List.of(_lv1Seed);
+  static List<HierarchicalLawNode> _lv2 = List.of(_lv2Seed);
+  static List<HierarchicalLawNode> _lv3 = List.of(_lv3Seed);
+  static List<HierarchicalLawNode> _lv4 = List.of(_lv4Seed);
+
+  /// kgrag_laws.json 등 외부 시드를 병합 (동일 id는 덮어씀).
+  static void registerExternalCatalog(List<HierarchicalLawNode> nodes) {
+    void merge(List<HierarchicalLawNode> target, HierarchicalLawNode n) {
+      final i = target.indexWhere((e) => e.id == n.id);
+      if (i >= 0) {
+        target[i] = n;
+      } else {
+        target.add(n);
+      }
+    }
+
+    for (final n in nodes) {
+      switch (n.level) {
+        case LawHierarchyLevel.constitution:
+          merge(_lv1, n);
+        case LawHierarchyLevel.basicCode:
+          merge(_lv2, n);
+        case LawHierarchyLevel.specialStatute:
+          merge(_lv3, n);
+        case LawHierarchyLevel.executiveRule:
+          merge(_lv4, n);
+      }
+    }
+  }
+
+  static void resetToSeed() {
+    _lv1 = List.of(_lv1Seed);
+    _lv2 = List.of(_lv2Seed);
+    _lv3 = List.of(_lv3Seed);
+    _lv4 = List.of(_lv4Seed);
+  }
+
   /// LV4 현장 가이드·별표서식 매칭.
   static List<HierarchicalLawNode> findMatchingLevel4(String cleanedContext) {
-    return _match(_lv4Catalog, cleanedContext);
+    return _match(_lv4, cleanedContext);
+  }
+
+  /// LV3 특별법 직접 매칭 (키워드 프로브).
+  static List<HierarchicalLawNode> findMatchingLevel3(String cleanedContext) {
+    return _match(_lv3, cleanedContext);
   }
 
   /// LV4 → LV3 특별법.
   static List<HierarchicalLawNode> resolveSpecialStatutes(
     List<HierarchicalLawNode> lv4Rules,
   ) {
-    return _resolveParents(lv4Rules, _lv3Catalog);
+    return _resolveParents(lv4Rules, _lv3);
   }
 
   /// LV3 → LV2 형법·형소법.
   static List<HierarchicalLawNode> resolveBasicCodes(
     List<HierarchicalLawNode> lv3Statutes,
   ) {
-    return _resolveParents(lv3Statutes, _lv2Catalog);
+    return _resolveParents(lv3Statutes, _lv2);
   }
 
   /// LV2 → LV1 헌법 통제.
   static List<HierarchicalLawNode> applyConstitutionalLimits(
     List<HierarchicalLawNode> lv2BasicCodes,
   ) {
-    if (lv2BasicCodes.isEmpty && !_hasForceSignal) {
-      // 실체법 매칭이 없어도 물리력·체포 정황이면 헌법 통제 부착
-    }
-    final fromParents = _resolveParents(lv2BasicCodes, _lv1Catalog);
+    final fromParents = _resolveParents(lv2BasicCodes, _lv1);
     if (fromParents.isNotEmpty) return fromParents;
-    // 공권력 행사 맥락의 최소 헌법 가드
-    return List<HierarchicalLawNode>.from(_lv1Catalog);
+    return List<HierarchicalLawNode>.from(_lv1);
   }
 
   static bool _hasForceSignal = false;
@@ -238,7 +276,7 @@ abstract final class LawOntology {
 
   // —— 시드 카탈로그 (경찰 STT 시연용 최소 온톨로지) ——
 
-  static const _lv1Catalog = <HierarchicalLawNode>[
+  static const _lv1Seed = <HierarchicalLawNode>[
     HierarchicalLawNode(
       id: 'KR-CONST-012',
       title: '헌법 제12조',
@@ -257,7 +295,7 @@ abstract final class LawOntology {
     ),
   ];
 
-  static const _lv2Catalog = <HierarchicalLawNode>[
+  static const _lv2Seed = <HierarchicalLawNode>[
     HierarchicalLawNode(
       id: 'KR-CRIM-PUBLIC-INDECENCY',
       title: '형법 공연음란',
@@ -287,7 +325,7 @@ abstract final class LawOntology {
     ),
   ];
 
-  static const _lv3Catalog = <HierarchicalLawNode>[
+  static const _lv3Seed = <HierarchicalLawNode>[
     HierarchicalLawNode(
       id: 'KR-MINOR-OFFENSE',
       title: '경범죄 처벌법',
@@ -335,7 +373,7 @@ abstract final class LawOntology {
     ),
   ];
 
-  static const _lv4Catalog = <HierarchicalLawNode>[
+  static const _lv4Seed = <HierarchicalLawNode>[
     HierarchicalLawNode(
       id: 'LV4-POLICE-DUTY',
       title: '경찰관 직무집행법',
@@ -394,7 +432,10 @@ abstract final class SgpLawExtractor {
         LawOntology.applyConstitutionalLimits(lv2BasicCodes);
 
     // LV4 미매칭이어도 키워드로 LV3 직접 보강 (특수법 우선 포착)
-    final directLv3 = _directMatchLevel3(cleanedContext);
+    final directLv3 = _mergeById(
+      _directMatchLevel3(cleanedContext),
+      LawOntology.findMatchingLevel3(cleanedContext),
+    );
     final mergedLv3 = _mergeById(lv3Statutes, directLv3);
     final lv2Boosted = _mergeById(
       lv2BasicCodes,

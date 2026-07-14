@@ -1,0 +1,248 @@
+{
+  "version": "1.0.0",
+  "title": "SGP-Agent 10대 사법 도메인 법령 시드 (kgrag_laws)",
+  "domains": [
+    {"id": "force", "label": "물리력·공무집행", "probe": "물리력 제압 저항"},
+    {"id": "civil", "label": "종합민원·민사", "probe": "보증금 층간소음 민사"},
+    {"id": "stalking", "label": "스토킹·데이트폭력", "probe": "스토킹 잠정조치"},
+    {"id": "traffic", "label": "교통·도로교통", "probe": "음주운전 도로교통"},
+    {"id": "juvenile", "label": "소년·보호", "probe": "소년 보호처분"},
+    {"id": "medical", "label": "응급의료·호송", "probe": "응급실 응급의료 방해"},
+    {"id": "cyber", "label": "사이버·사기", "probe": "보이스피싱 사이버"},
+    {"id": "assembly", "label": "집회·시위(대경법)", "probe": "집회시위 대경법"},
+    {"id": "aviation_disaster", "label": "항공·재난안전", "probe": "드론 재난안전"},
+    {"id": "diplomatic_animal", "label": "외교·동물보호", "probe": "비엔나 협약 동물보호 목줄"}
+  ],
+  "nodes": [
+    {
+      "id": "KR-CONST-012",
+      "title": "헌법 제12조",
+      "level": "constitution",
+      "article": "제12조",
+      "body": "영장주의·신체의 자유",
+      "keywords": ["영장", "체포", "구속"],
+      "parentIds": [],
+      "domain": "force"
+    },
+    {
+      "id": "KR-CONST-037-2",
+      "title": "헌법 제37조 제2항",
+      "level": "constitution",
+      "article": "제37조 제2항",
+      "body": "과잉금지",
+      "keywords": ["과잉금지", "비례", "물리력"],
+      "parentIds": [],
+      "domain": "force"
+    },
+    {
+      "id": "KR-CRIM-PROC",
+      "title": "형사소송법",
+      "level": "basicCode",
+      "article": "현행범 등",
+      "body": "수사·체포 절차",
+      "keywords": ["현행범", "체포", "압수"],
+      "parentIds": ["KR-CONST-012"],
+      "domain": "force"
+    },
+    {
+      "id": "KR-CRIM-ASSAULT",
+      "title": "형법 폭행",
+      "level": "basicCode",
+      "article": "형법 제260조",
+      "body": "폭행",
+      "keywords": ["폭행", "공격"],
+      "parentIds": ["KR-CONST-012", "KR-CONST-037-2"],
+      "domain": "force"
+    },
+    {
+      "id": "KR-CRIM-FRAUD",
+      "title": "형법 사기",
+      "level": "basicCode",
+      "article": "형법 제347조",
+      "body": "사기",
+      "keywords": ["사기", "보이스피싱", "이체"],
+      "parentIds": ["KR-CONST-012"],
+      "domain": "cyber"
+    },
+    {
+      "id": "KR-AVIATION-SAFE",
+      "title": "항공안전법",
+      "level": "specialStatute",
+      "article": "드론·무인비행장치",
+      "body": "무인동력비행장치 운항·신고",
+      "keywords": ["드론", "비행", "항공", "항공안전"],
+      "parentIds": ["KR-CRIM-PROC"],
+      "domain": "aviation_disaster"
+    },
+    {
+      "id": "KR-ASSEMBLY-DEMO",
+      "title": "집회 및 시위에 관한 법률(대경법)",
+      "level": "specialStatute",
+      "article": "집회·시위 신고·금지",
+      "body": "집회시위의 자유와 공공질서 조화",
+      "keywords": ["집회", "시위", "대경법", "집회시위"],
+      "parentIds": ["KR-CRIM-PROC", "KR-CONST-012"],
+      "domain": "assembly"
+    },
+    {
+      "id": "KR-VIENNA-DIPLOMATIC",
+      "title": "비엔나 외교관계협약",
+      "level": "specialStatute",
+      "article": "외교공관·면책",
+      "body": "외교공관 불가침·면책특권",
+      "keywords": ["비엔나", "외교", "공관", "면책", "외교관"],
+      "parentIds": ["KR-CONST-012", "KR-CRIM-PROC"],
+      "domain": "diplomatic_animal"
+    },
+    {
+      "id": "KR-EMS",
+      "title": "응급의료에 관한 법률",
+      "level": "specialStatute",
+      "article": "응급실·응급처치",
+      "body": "응급의료 방해·이송 보호",
+      "keywords": ["응급실", "응급의료", "구급", "소방"],
+      "parentIds": ["KR-CRIM-ASSAULT", "KR-CRIM-PROC"],
+      "domain": "medical"
+    },
+    {
+      "id": "KR-DISASTER-SAFETY",
+      "title": "재난 및 안전관리 기본법",
+      "level": "specialStatute",
+      "article": "재난대응·안전관리",
+      "body": "재난 예·경보 및 현장 통솔",
+      "keywords": ["재난", "재난안전", "대피", "안전관리"],
+      "parentIds": ["KR-CRIM-PROC"],
+      "domain": "aviation_disaster"
+    },
+    {
+      "id": "KR-ANIMAL-PROTECT",
+      "title": "동물보호법",
+      "level": "specialStatute",
+      "article": "맹견·목줄",
+      "body": "동물학대·맹견 관리",
+      "keywords": ["동물보호", "목줄", "맹견", "개물림"],
+      "parentIds": ["KR-CRIM-ASSAULT", "KR-CRIM-PROC"],
+      "domain": "diplomatic_animal"
+    },
+    {
+      "id": "KR-ROAD-TRAFFIC",
+      "title": "도로교통법",
+      "level": "specialStatute",
+      "article": "음주·무면허",
+      "body": "도로교통 특별법",
+      "keywords": ["음주운전", "도로교통", "무면허"],
+      "parentIds": ["KR-CRIM-PROC"],
+      "domain": "traffic"
+    },
+    {
+      "id": "KR-STALKING",
+      "title": "스토킹범죄의 처벌 등에 관한 법률",
+      "level": "specialStatute",
+      "article": "잠정조치",
+      "body": "스토킹·잠정조치",
+      "keywords": ["스토킹", "잠정조치", "데이트폭력"],
+      "parentIds": ["KR-CRIM-ASSAULT", "KR-CRIM-PROC"],
+      "domain": "stalking"
+    },
+    {
+      "id": "KR-JUVENILE",
+      "title": "소년법",
+      "level": "specialStatute",
+      "article": "보호처분",
+      "body": "소년 사건 특례",
+      "keywords": ["소년", "보호처분", "촉법"],
+      "parentIds": ["KR-CRIM-PROC"],
+      "domain": "juvenile"
+    },
+    {
+      "id": "KR-CIVIL-ACT",
+      "title": "민법(민사 일반)",
+      "level": "specialStatute",
+      "article": "채권·임대차",
+      "body": "경찰 불개입 민사 영역 안내용",
+      "keywords": ["보증금", "임대차", "민사", "채무"],
+      "parentIds": ["KR-CRIM-PROC"],
+      "domain": "civil"
+    },
+    {
+      "id": "LV4-DRONE-GUIDE",
+      "title": "드론 현장 대응 가이드",
+      "level": "executiveRule",
+      "article": "항공안전 현장수칙",
+      "body": "신고·촬영·관제구역 확인",
+      "keywords": ["드론", "비행", "항공"],
+      "parentIds": ["KR-AVIATION-SAFE", "KR-DISASTER-SAFETY"],
+      "domain": "aviation_disaster"
+    },
+    {
+      "id": "LV4-ASSEMBLY-GUIDE",
+      "title": "집회시위 현장 가이드(대경)",
+      "level": "executiveRule",
+      "article": "신고·충돌 예방",
+      "body": "집회 신고사항·병력 배치",
+      "keywords": ["집회", "시위", "대경법"],
+      "parentIds": ["KR-ASSEMBLY-DEMO"],
+      "domain": "assembly"
+    },
+    {
+      "id": "LV4-VIENNA-GUIDE",
+      "title": "외교공관 현장 수칙",
+      "level": "executiveRule",
+      "article": "비엔나 협약 적용",
+      "body": "공관 불가침·외교통상부 통보",
+      "keywords": ["비엔나", "외교", "공관"],
+      "parentIds": ["KR-VIENNA-DIPLOMATIC"],
+      "domain": "diplomatic_animal"
+    },
+    {
+      "id": "LV4-EMS-GUIDE",
+      "title": "응급의료 방해 조치 가이드",
+      "level": "executiveRule",
+      "article": "응급실 소란",
+      "body": "퇴실·현행범·즉결 검토",
+      "keywords": ["응급실", "응급의료", "소란"],
+      "parentIds": ["KR-EMS"],
+      "domain": "medical"
+    },
+    {
+      "id": "LV4-DISASTER-GUIDE",
+      "title": "재난현장 치안 가이드",
+      "level": "executiveRule",
+      "article": "재난안전 기본법 연계",
+      "body": "통제선·대피 유도",
+      "keywords": ["재난", "재난안전", "대피"],
+      "parentIds": ["KR-DISASTER-SAFETY"],
+      "domain": "aviation_disaster"
+    },
+    {
+      "id": "LV4-ANIMAL-GUIDE",
+      "title": "반려견·맹견 현장 가이드",
+      "level": "executiveRule",
+      "article": "동물보호법 집행",
+      "body": "목줄·물림사고 초동",
+      "keywords": ["목줄", "맹견", "개물림", "동물보호"],
+      "parentIds": ["KR-ANIMAL-PROTECT"],
+      "domain": "diplomatic_animal"
+    },
+    {
+      "id": "LV4-FORCE-MATRIX",
+      "title": "물리력 대응 가이드",
+      "level": "executiveRule",
+      "article": "5단계 매트릭스",
+      "body": "저항 단계별 장구",
+      "keywords": ["물리력", "저항", "제압", "테이저"],
+      "parentIds": ["KR-CRIM-ASSAULT"],
+      "domain": "force"
+    },
+    {
+      "id": "LV4-SUMMARY-TRIAL",
+      "title": "즉결심판 서식군",
+      "level": "executiveRule",
+      "article": "별표서식 123종",
+      "body": "즉결심판 청구",
+      "keywords": ["즉결", "경범죄"],
+      "parentIds": ["KR-CRIM-PROC"],
+      "domain": "force"
+    }
+  ]
+}

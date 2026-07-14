@@ -43,6 +43,8 @@ import 'widgets/sgp_law_snapshot_offline_banner.dart';
 import 'sgp_officer_defense_shield_assembler.dart';
 import 'sgp_law_offgrid_sync.dart';
 import 'sgp_law_extractor.dart';
+import 'sgp_session_recovery_manager.dart';
+import 'sgp_kgrag_laws_loader.dart';
 import 'sgp_legal_defense_package_dialog.dart';
 import 'sgp_kgrag_assets.dart';
 import 'sgp_kgrag_router.dart';
@@ -100,7 +102,8 @@ class SgpAgentScreen extends StatefulWidget {
   State<SgpAgentScreen> createState() => _SgpAgentScreenState();
 }
 
-class _SgpAgentScreenState extends State<SgpAgentScreen> {
+class _SgpAgentScreenState extends State<SgpAgentScreen>
+    with WidgetsBindingObserver {
   final _rawTextController = TextEditingController();
   final _engine = SgpAgentEngine();
   final _sttEngine = SgpSttEngine();
@@ -109,6 +112,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   final _sttFieldKey = GlobalKey();
   final _biometricGate = SgpSimulatedBiometricAuth();
   final _sttFocusNode = FocusNode();
+  SgpSessionRecoveryManager? _sessionRecovery;
 
   LawCheckList _checklist = const LawCheckList();
   RuleMatchResult _ruleResult = const RuleMatchResult(
@@ -179,6 +183,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     configureAgentStorageCipher(SgpNativeBridge.cacheCipher);
     _rawTextController.addListener(_onRawTextChanged);
     _sttFocusNode.addListener(_onSttFocusChanged);
@@ -190,6 +195,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     };
     _lawOffGrid = SgpLawOffGridSync(forbidsNetworkEgress: true);
     unawaited(_lawOffGrid.bootstrap());
+    unawaited(_initSessionRecovery());
+    unawaited(_loadKgragLawsPack());
     _initEngine();
     _loadPrecedentDictionary();
     _initCourtPrecedentsOta();
@@ -197,6 +204,75 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     _initStt();
     _subscribeAudioHotplug();
     _refreshSavedRecords();
+  }
+
+  Future<void> _initSessionRecovery() async {
+    final dir = await getAgentStorageDirectory();
+    if (!mounted) return;
+    _sessionRecovery = SgpSessionRecoveryManager(
+      directory: dir,
+      cipher: SgpNativeBridge.cacheCipher,
+    );
+    final cp = await _sessionRecovery!.restore();
+    if (cp == null || !cp.hasRecoverableContent || !mounted) return;
+    setState(() {
+      _rawTextController.text = cp.rawText;
+      if (cp.operationalMode == 'investigation') {
+        _operationalMode = SgpOperationalMode.investigation;
+      }
+      _forceExecutionLogged = cp.forceExecutionLogged;
+      _selfJudgmentAccepted = cp.selfJudgmentAccepted;
+      if (cp.hierarchicalLawJson != null) {
+        _hierarchicalLawSet =
+            HierarchicalLawSet.fromJson(cp.hierarchicalLawJson!);
+      }
+    });
+    _applyRuleMapping();
+    _showSnack('이전 세션을 Secure Vault에서 복구했습니다.');
+  }
+
+  Future<void> _loadKgragLawsPack() async {
+    try {
+      final raw = await rootBundle.loadString(SgpKgragLawsLoader.assetPath);
+      final pack = KgragLawsPack.parse(raw);
+      LawOntology.registerExternalCatalog(pack.nodes);
+    } catch (_) {
+      // 시드 온톨로지 폴백
+    }
+  }
+
+  SgpSessionCheckpoint _buildSessionCheckpoint() {
+    return SgpSessionCheckpoint(
+      rawText: _rawTextController.text,
+      savedAt: DateTime.now(),
+      operationalMode: _operationalMode == SgpOperationalMode.investigation
+          ? 'investigation'
+          : 'field',
+      checklistJson: _checklist.toJson(),
+      hierarchicalLawJson: _hierarchicalLawSet?.toJson(),
+      physicalThreatLevel: _procedureTimeline?.physicalThreatLevel?.name,
+      forceExecutionLogged: _forceExecutionLogged,
+      selfJudgmentAccepted: _selfJudgmentAccepted,
+    );
+  }
+
+  void _scheduleSessionAutosave() {
+    final mgr = _sessionRecovery;
+    if (mgr == null) return;
+    mgr.scheduleAutosave(_buildSessionCheckpoint());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      final mgr = _sessionRecovery;
+      if (mgr != null) {
+        unawaited(mgr.flush(_buildSessionCheckpoint()));
+      }
+    }
   }
 
   void _noteUserInteraction() {
@@ -438,6 +514,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
     final set = _lawOffGrid.extractFromFieldText(text);
     if (!mounted) return;
     setState(() => _hierarchicalLawSet = set);
+    _scheduleSessionAutosave();
   }
 
   bool _timelineCheckDone(String nodeId, String checkId) {
@@ -1527,6 +1604,12 @@ class _SgpAgentScreenState extends State<SgpAgentScreen> {
 
   @override
   void dispose() {
+    final mgr = _sessionRecovery;
+    if (mgr != null) {
+      unawaited(mgr.flush(_buildSessionCheckpoint()));
+      mgr.dispose();
+    }
+    WidgetsBinding.instance.removeObserver(this);
     _ruleDebounce?.cancel();
     _audioInputSub?.cancel();
     _rawTextController.removeListener(_onRawTextChanged);
