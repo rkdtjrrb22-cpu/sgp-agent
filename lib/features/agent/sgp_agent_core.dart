@@ -26,12 +26,15 @@ import 'sgp_officer_defense_shield_assembler.dart';
 import 'sgp_constitutional_force_engine.dart';
 import 'sgp_physical_threat_level.dart';
 
+import 'package:sgp_agent/features/control/sgp_amdahl_gunter_controller.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_agent_node.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_controller.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_flusher.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_handshake.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_innovation_engine.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_monitor.dart';
+import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_scheduler.dart';
+import 'package:sgp_agent/features/security/sgp_legal_blackbox.dart';
 import 'package:sgp_agent/native/sgp_native_bridge.dart';
 
 part 'sgp_agent_advanced.dart';
@@ -166,6 +169,9 @@ class InferencePipelineResult {
     required this.prompt,
     required this.output,
     required this.advancedAnalysis,
+    this.provenanceEntry,
+    this.amdahlDecision,
+    this.optimistic = false,
   });
 
   final RuleMatchResult ruleResult;
@@ -173,6 +179,9 @@ class InferencePipelineResult {
   final String prompt;
   final String output;
   final SgpAdvancedAnalysis advancedAnalysis;
+  final LegalProvenanceEntry? provenanceEntry;
+  final SgpAutonomicDecision? amdahlDecision;
+  final bool optimistic;
 }
 
 /// 1단계 규칙 매칭 → 2단계 CoT 프롬프트 → 3단계 출력.
@@ -486,11 +495,25 @@ class SgpAgentEngine {
   /// UI 세션 컨트롤러 — 부착 시 Main/Shadow 단일 스택으로 메트릭·라우팅 동기화.
   SgpGlymphaticController? _attachedGlymphatic;
 
+  /// 암달·건터 자율 튜닝 + Active Agent Pool.
+  final SgpAmdahlGunterController amdahlGunter = SgpAmdahlGunterController();
+
+  /// 글림파틱 백그라운드 격리 스케줄러 (화면 init에서 데몬 기동).
+  late final SgpGlymphaticScheduler glymphaticScheduler =
+      SgpGlymphaticScheduler(controller: amdahlGunter);
+
+  /// 법률 블랙박스 (WORM) — 디렉터리 주입 시 디스크 동기화.
+  SgpLegalBlackbox legalBlackbox = SgpLegalBlackbox();
+
   SgpAgentEngine() {
     _glymphaticMain.activate();
     _glymphaticShadow.markReadyForSwap();
     _glymphaticActive = _glymphaticMain;
     _glymphaticStandby = _glymphaticShadow;
+  }
+
+  void attachLegalBlackbox(SgpLegalBlackbox blackbox) {
+    legalBlackbox = blackbox;
   }
 
   /// Flutter 화면의 [SgpGlymphaticSession]을 엔진 프로브에 연결 (Dual-Stack 싱글소스화).
@@ -795,6 +818,7 @@ class SgpAgentEngine {
   /// 화면 이탈 시 호출 — RAM 점유 즉시 해제.
   void dispose() {
     stopGlymphaticMonitorLoop();
+    glymphaticScheduler.stopDaemon();
     _modelWeights = null;
     _isLoaded = false;
     _forceDefenseSnapshot = null;
@@ -803,47 +827,97 @@ class SgpAgentEngine {
   }
 
   /// 정형 프롬프트 기반 추론 (3단계 파이프라인).
+  ///
+  /// [operationalMode] `field` → 병렬(P) 비중 계측·Agent Pool 경유.
+  /// 순차(1-P) 생체/서명은 UI에서 [amdahlGunter.recordSequentialGate] 호출.
   Future<InferencePipelineResult> runPipeline({
     required String rawText,
     required LawCheckList checklist,
+    String operationalMode = 'field',
+    String? userSignatureMaterial,
+    List<String>? ontologyNodeIds,
+    Map<String, double>? kgragDocWeights,
+    bool sealBlackbox = true,
   }) async {
     if (!_isLoaded) {
       await loadModel();
     }
-    final ruleResult = matchLawFilters(rawText);
-    final merged = mergeChecklists(checklist, ruleResult.suggestedChecklist);
-    final prompt = buildPipelinePrompt(
-      rawText: rawText,
-      checklist: merged,
-      ruleResult: ruleResult,
-    );
-    final advanced = runAdvancedAnalysis(
-      rawText: rawText,
-      checklist: merged,
-      ruleResult: ruleResult,
-    );
-    _recordGlymphaticContext(rawText);
-    _recordGlymphaticContext(prompt);
-    final sw = Stopwatch()..start();
-    final output = await _runInference(
-      prompt,
-      rawText: rawText,
-      checklist: merged,
-      ruleResult: ruleResult,
-      advanced: advanced,
-    );
-    sw.stop();
-    _recordGlymphaticInference(output, sw.elapsedMilliseconds.toDouble());
-    if (shouldTriggerGlymphaticFlush) {
-      await triggerGlymphaticFlush();
+    amdahlGunter.noteQueryIngress();
+    amdahlGunter.recordParallelWork();
+    glymphaticScheduler.markUserQueryStarted();
+
+    try {
+      final decision = amdahlGunter.observe(
+        SgpResourceSample(
+          cpuAvailability: 0.72,
+          memoryAvailability: 0.68,
+          queryTrafficRate: amdahlGunter.queryTrafficRate,
+        ),
+      );
+
+      final ruleResult = matchLawFilters(rawText);
+      final merged = mergeChecklists(checklist, ruleResult.suggestedChecklist);
+      final prompt = buildPipelinePrompt(
+        rawText: rawText,
+        checklist: merged,
+        ruleResult: ruleResult,
+      );
+      final advanced = runAdvancedAnalysis(
+        rawText: rawText,
+        checklist: merged,
+        ruleResult: ruleResult,
+      );
+      _recordGlymphaticContext(rawText);
+      _recordGlymphaticContext(prompt);
+
+      final sw = Stopwatch()..start();
+      final output = await amdahlGunter.pool.run(() async {
+        return _runInference(
+          prompt,
+          rawText: rawText,
+          checklist: merged,
+          ruleResult: ruleResult,
+          advanced: advanced,
+        );
+      });
+      sw.stop();
+      _recordGlymphaticInference(output, sw.elapsedMilliseconds.toDouble());
+
+      LegalProvenanceEntry? provenance;
+      if (sealBlackbox) {
+        final ontoIds = ontologyNodeIds ??
+            ruleResult.triggeredFilters
+                .map((f) => f.definition.filterName)
+                .toList();
+        provenance = await legalBlackbox.appendInference(
+          ontologyNodeIds: ontoIds,
+          kgragDocWeights: kgragDocWeights ?? const {},
+          prompt: prompt,
+          userSignatureMaterial: userSignatureMaterial ??
+              'officer_ack|${rawText.hashCode}|$operationalMode',
+          opinionSummary: output.length > 240 ? output.substring(0, 240) : output,
+          operationalMode: operationalMode,
+        );
+      }
+
+      // 글림파틱은 쿼리 경로와 격리 — 스케줄러 허용 시에만 트리거
+      if (shouldTriggerGlymphaticFlush &&
+          (amdahlGunter.lastDecision?.allowGlymphaticClean ?? true)) {
+        await triggerGlymphaticFlush();
+      }
+
+      return InferencePipelineResult(
+        ruleResult: ruleResult,
+        mergedChecklist: merged,
+        prompt: prompt,
+        output: output,
+        advancedAnalysis: advanced,
+        provenanceEntry: provenance,
+        amdahlDecision: decision,
+      );
+    } finally {
+      glymphaticScheduler.markUserQueryFinished();
     }
-    return InferencePipelineResult(
-      ruleResult: ruleResult,
-      mergedChecklist: merged,
-      prompt: prompt,
-      output: output,
-      advancedAnalysis: advanced,
-    );
   }
 
   /// 정형 프롬프트 기반 추론 (오프라인 전용).

@@ -221,18 +221,35 @@ abstract final class LawOntology {
     return _resolveParents(lv3Statutes, _lv2);
   }
 
+  static bool _hasForceSignal = false;
+
+  static void noteForceContext(bool value) => _hasForceSignal = value;
+
   /// LV2 → LV1 헌법 통제.
+  ///
+  /// 물리력·체포 신호가 있으면 과잉금지(제37조 제2항)를 LV1 선두에 고정한다.
   static List<HierarchicalLawNode> applyConstitutionalLimits(
     List<HierarchicalLawNode> lv2BasicCodes,
   ) {
     final fromParents = _resolveParents(lv2BasicCodes, _lv1);
-    if (fromParents.isNotEmpty) return fromParents;
-    return List<HierarchicalLawNode>.from(_lv1);
+    final base = fromParents.isNotEmpty
+        ? List<HierarchicalLawNode>.from(fromParents)
+        : List<HierarchicalLawNode>.from(_lv1);
+
+    if (!_hasForceSignal) return base;
+
+    HierarchicalLawNode? excessBan;
+    for (final n in _lv1) {
+      if (n.id == 'KR-CONST-037-2') {
+        excessBan = n;
+        break;
+      }
+    }
+    if (excessBan == null) return base;
+
+    final without = base.where((e) => e.id != excessBan!.id).toList();
+    return [excessBan, ...without];
   }
-
-  static bool _hasForceSignal = false;
-
-  static void noteForceContext(bool value) => _hasForceSignal = value;
 
   static List<HierarchicalLawNode> _match(
     List<HierarchicalLawNode> catalog,

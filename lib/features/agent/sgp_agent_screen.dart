@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -49,11 +50,14 @@ import 'sgp_legal_defense_package_dialog.dart';
 import 'sgp_kgrag_assets.dart';
 import 'sgp_kgrag_router.dart';
 import '../control/sgp_anti_corruption_filter.dart';
+import '../control/sgp_amdahl_gunter_controller.dart';
 import 'panels/sgp_anti_corruption_panel.dart';
 import 'panels/sgp_statute_domain_panel.dart';
 import 'sgp_operational_mode.dart';
 import 'sgp_statute_domain_engine.dart';
+import 'sgp_investigation_hyperlink_verifier.dart';
 import 'widgets/sgp_mode_toggle_button.dart';
+import 'widgets/sgp_investigation_hyperlink_panel.dart';
 import '../investigation/widgets/sgp_arrest_timeline_bar.dart';
 import 'panels/sgp_mock_defense_panel.dart';
 import 'panels/sgp_custody_panel.dart';
@@ -63,6 +67,7 @@ import '../investigation/modules/sgp_death_logic_hub.dart';
 import '../investigation/screens/sgp_death_scene_router.dart';
 import '../control/sgp_custody_management.dart';
 import '../security/sgp_secure_crypto.dart';
+import '../security/sgp_legal_blackbox.dart';
 import 'sgp_vector_store.dart';
 import '../glymphatic/sgp_glymphatic_controller.dart';
 import '../glymphatic/sgp_glymphatic_flush_policy.dart';
@@ -175,6 +180,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
   EvidenceScenarioPipelineResult? _evidencePipeline;
   late final SgpLawOffGridSync _lawOffGrid;
   HierarchicalLawSet? _hierarchicalLawSet;
+  InvestigationHyperlinkSession? _hyperlinkSession;
 
   static const _liabilityNotice =
       '최종 체포 결정 및 사법 절차적 모든 법적 책임은 '
@@ -669,6 +675,13 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
     setState(() {
       _kgragResult = result;
       _kgragLoading = false;
+      if (_operationalMode == SgpOperationalMode.investigation &&
+          result != null) {
+        _hyperlinkSession =
+            SgpInvestigationHyperlinkVerifier.assemble(result);
+      } else if (result == null) {
+        _hyperlinkSession = null;
+      }
     });
   }
 
@@ -1552,15 +1565,31 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
     try {
       await _engine.loadModel();
       _engine.attachGlymphaticController(_glymphaticController);
+      final storageDir = await getAgentStorageDirectory();
+      final bbDir = Directory('${storageDir.path}/legal_blackbox');
+      _engine.attachLegalBlackbox(SgpLegalBlackbox(directory: bbDir));
+      unawaited(_engine.legalBlackbox.loadFromDisk());
+
       _engine.glymphaticFlushDelegate = (snapshot) async {
+        final sample = SgpResourceSample(
+          cpuAvailability: _inferring ? 0.35 : 0.7,
+          memoryAvailability: 0.65,
+          queryTrafficRate: _engine.amdahlGunter.queryTrafficRate,
+        );
+        final budget = _engine.glymphaticScheduler.resolveBudget(sample);
+        if (!budget.allowClean) return;
+
         final presentation = SgpGlymphaticFlushPolicy.resolve(
           isUrgentSituation: _urgencyDetector.isUrgentSituation,
           lastUserInteractionTime:
               _glymphaticController.lastUserInteractionTime,
         );
-        final allowOverlay =
-            SgpGlymphaticFlushPolicy.allowsOverlay(presentation);
-        final mode = SgpGlymphaticFlushPolicy.modeFor(presentation);
+        var mode = SgpGlymphaticFlushPolicy.modeFor(presentation);
+        if (budget.preferredMode == GlymphaticFlushMode.minor) {
+          mode = GlymphaticFlushMode.minor;
+        }
+        final allowOverlay = SgpGlymphaticFlushPolicy.allowsOverlay(presentation) &&
+            mode == GlymphaticFlushMode.major;
         await _glymphaticUiBus.runWithFlushOverlay(
           allowOverlay: allowOverlay,
           () async {
@@ -1580,6 +1609,30 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
         );
         _refreshGlymphaticDashboard();
       };
+
+      _engine.glymphaticScheduler.startDaemon(
+        cleanWork: (budget) async {
+          if (!budget.allowClean) return;
+          final snap = _engine.sampleGlymphaticTriggers();
+          if (!snap.shouldFlush &&
+              budget.preferredMode == GlymphaticFlushMode.minor) {
+            return;
+          }
+          if (_engine.glymphaticFlushDelegate != null) {
+            await _engine.glymphaticFlushDelegate!(snap);
+          }
+        },
+        sampleProvider: () => SgpResourceSample(
+          cpuAvailability: _inferring ? 0.35 : 0.75,
+          memoryAvailability: 0.7,
+          queryTrafficRate: _engine.amdahlGunter.queryTrafficRate,
+          betaConsistencyLoad:
+              _operationalMode == SgpOperationalMode.investigation
+                  ? 0.2
+                  : 0.05,
+        ),
+      );
+
       unawaited(
         _engine.startGlymphaticMonitorLoop(
           onMonitorTick: _onGlymphaticMonitorTick,
@@ -1589,7 +1642,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
       if (mounted) {
         setState(() {
           _modelLoading = false;
-          _statusMessage = '온디바이스 모델 적재 완료 (오프라인 추론 가능)';
+          _statusMessage = '온디바이스 모델 적재 완료 (Amdahl/Gunter·블랙박스 활성)';
         });
       }
     } catch (e) {
@@ -1618,6 +1671,7 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
     _scrollController.dispose();
     _sttFocusNode.dispose();
     _engine.detachGlymphaticController();
+    _engine.glymphaticScheduler.stopDaemon();
     _engine.dispose();
     _sttEngine.dispose();
     _glymphaticController.dispose();
@@ -1728,30 +1782,73 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
       return;
     }
 
+    final isField = _operationalMode == SgpOperationalMode.field;
     setState(() {
       _inferring = true;
-      _generatedOutput = null;
+      _generatedOutput = isField
+          ? '⏳ 현장 Optimistic UI — 법리 검색 비동기 큐잉 중…'
+          : null;
       _advancedAnalysis = null;
     });
 
-    try {
+    Future<void> completePipeline() async {
+      final weights = <String, double>{};
+      final kgrag = _kgragResult;
+      if (kgrag != null) {
+        for (final hit in kgrag.precedentHits) {
+          weights[hit.caseNo] = hit.similarity;
+        }
+      }
       final pipeline = await _engine.runPipeline(
         rawText: rawText,
         checklist: _checklist,
+        operationalMode: isField ? 'field' : 'investigation',
+        ontologyNodeIds: kgrag?.ontologyShield.legalNodeIds,
+        kgragDocWeights: weights,
+        userSignatureMaterial:
+            'self_judgment|$_selfJudgmentAccepted|${DateTime.now().toIso8601String()}',
       );
-      if (mounted) {
-        setState(() {
-          _ruleResult = pipeline.ruleResult;
-          _checklist = pipeline.mergedChecklist;
-          _generatedOutput = pipeline.output;
-          _advancedAnalysis = pipeline.advancedAnalysis;
-          _inferring = false;
-        });
-        _refreshQuantumAnalysis();
-        if (pipeline.advancedAnalysis.hasCriticalProceduralAlert) {
-          _showProceduralAlert(pipeline.advancedAnalysis);
+      if (!mounted) return;
+      setState(() {
+        _ruleResult = pipeline.ruleResult;
+        _checklist = pipeline.mergedChecklist;
+        _generatedOutput = pipeline.output;
+        _advancedAnalysis = pipeline.advancedAnalysis;
+        _inferring = false;
+        if (pipeline.amdahlDecision != null) {
+          final d = pipeline.amdahlDecision!;
+          _statusMessage =
+              'Amdahl×${d.amdahlSpeedup.toStringAsFixed(2)} · '
+              'Gunter N=${d.activeAgents}/${d.nMax} · '
+              'P=${(d.parallelFractionP * 100).toStringAsFixed(0)}%';
         }
-        _maybeSuggestArrestTimeline(pipeline.mergedChecklist);
+        if (kgrag != null && !isField) {
+          _hyperlinkSession = SgpInvestigationHyperlinkVerifier.assemble(kgrag);
+        }
+      });
+      _refreshQuantumAnalysis();
+      if (pipeline.advancedAnalysis.hasCriticalProceduralAlert) {
+        _showProceduralAlert(pipeline.advancedAnalysis);
+      }
+      _maybeSuggestArrestTimeline(pipeline.mergedChecklist);
+    }
+
+    try {
+      if (isField) {
+        // 선응답 후처리 — UI 즉시 ACK, 실작업은 Agent Pool 백그라운드
+        _engine.amdahlGunter.recordParallelWork();
+        unawaited(() async {
+          try {
+            await completePipeline();
+          } catch (e) {
+            if (mounted) {
+              setState(() => _inferring = false);
+              _showSnack('추론 오류: $e');
+            }
+          }
+        }());
+      } else {
+        await completePipeline();
       }
     } catch (e) {
       if (mounted) {
@@ -2367,6 +2464,26 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
             ],
             const SizedBox(height: 12),
             _buildRuleMappingSection(),
+            if (_operationalMode == SgpOperationalMode.investigation &&
+                _hyperlinkSession != null &&
+                _hyperlinkSession!.total > 0) ...[
+              const SizedBox(height: 12),
+              SgpInvestigationHyperlinkPanel(
+                session: _hyperlinkSession!,
+                onVerified: (nodeId) {
+                  setState(() {
+                    _hyperlinkSession!.markVerified(nodeId);
+                    _engine.amdahlGunter.recordSequentialGate();
+                  });
+                  for (final node in _hyperlinkSession!.nodes) {
+                    if (node.nodeId == nodeId) {
+                      _showSnack(node.verifyHint);
+                      break;
+                    }
+                  }
+                },
+              ),
+            ],
             if (_operationalMode == SgpOperationalMode.investigation &&
                 _statuteDomain != StatuteDomain.none) ...[
               const SizedBox(height: 12),
@@ -3391,18 +3508,24 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
               ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: () => setState(
-                  () => _selfJudgmentAccepted = !_selfJudgmentAccepted,
-                ),
+                onTap: () => setState(() {
+                  _selfJudgmentAccepted = !_selfJudgmentAccepted;
+                  if (_selfJudgmentAccepted) {
+                    _engine.amdahlGunter.recordSequentialGate();
+                  }
+                }),
                 behavior: HitTestBehavior.opaque,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Checkbox(
                       value: _selfJudgmentAccepted,
-                      onChanged: (v) => setState(
-                        () => _selfJudgmentAccepted = v ?? false,
-                      ),
+                      onChanged: (v) => setState(() {
+                        _selfJudgmentAccepted = v ?? false;
+                        if (_selfJudgmentAccepted) {
+                          _engine.amdahlGunter.recordSequentialGate();
+                        }
+                      }),
                       activeColor: SgpAppTheme.primary,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
