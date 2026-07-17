@@ -27,6 +27,8 @@ import 'sgp_constitutional_force_engine.dart';
 import 'sgp_physical_threat_level.dart';
 
 import 'package:sgp_agent/features/control/sgp_amdahl_gunter_controller.dart';
+import 'package:sgp_agent/features/control/sgp_edge_hybrid_scheduler.dart';
+import 'package:sgp_agent/features/agent/sgp_chaos_catfish.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_agent_node.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_controller.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_flusher.dart';
@@ -34,7 +36,9 @@ import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_handshake.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_innovation_engine.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_monitor.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_scheduler.dart';
+import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_smart_sleep.dart';
 import 'package:sgp_agent/features/security/sgp_legal_blackbox.dart';
+import 'package:sgp_agent/features/security/sgp_legal_blackbox_resiliency.dart';
 import 'package:sgp_agent/native/sgp_native_bridge.dart';
 
 part 'sgp_agent_advanced.dart';
@@ -498,12 +502,22 @@ class SgpAgentEngine {
   /// 암달·건터 자율 튜닝 + Active Agent Pool.
   final SgpAmdahlGunterController amdahlGunter = SgpAmdahlGunterController();
 
+  /// Edge-Cloud Hybrid (음영지역 Local 웜스타트).
+  late final SgpEdgeHybridScheduler edgeHybrid =
+      SgpEdgeHybridScheduler(amdahlGunter);
+
   /// 글림파틱 백그라운드 격리 스케줄러 (화면 init에서 데몬 기동).
   late final SgpGlymphaticScheduler glymphaticScheduler =
       SgpGlymphaticScheduler(controller: amdahlGunter);
 
   /// 법률 블랙박스 (WORM) — 디렉터리 주입 시 디스크 동기화.
   SgpLegalBlackbox legalBlackbox = SgpLegalBlackbox();
+
+  /// 분산 원장 미러 + Enclave 복구 (선택 부착).
+  SgpLegalBlackboxResiliency? blackboxResiliency;
+
+  /// SGP-Catfish(메기) — 유휴 시 사법 모순 자극 → 글림파틱 공생 검증.
+  late final SgpChaosCatfish catfish = SgpChaosCatfish();
 
   SgpAgentEngine() {
     _glymphaticMain.activate();
@@ -514,6 +528,43 @@ class SgpAgentEngine {
 
   void attachLegalBlackbox(SgpLegalBlackbox blackbox) {
     legalBlackbox = blackbox;
+    glymphaticScheduler.smartSleep.blackbox = blackbox;
+    catfish.blackbox = blackbox;
+  }
+
+  /// 수사 넷 원장 싱크 부착 (망분리 디렉터리 PoC).
+  void attachBlackboxResiliency(SgpLegalBlackboxResiliency resiliency) {
+    blackboxResiliency = resiliency;
+  }
+
+  /// 네트워크 프로브 → Edge Hybrid 스위칭 (KPI < 200ms).
+  SgpEdgeHybridSwitchResult applyNetworkProbe(SgpNetworkProbe probe) {
+    return edgeHybrid.applyNetworkProbe(probe);
+  }
+
+  /// Smart Sleep GC (심야/충전) — 삭제 이력은 블랙박스에 기록.
+  Future<GlymphaticGcReport> runGlymphaticGc({
+    required List<KgPrecedentNode> nodes,
+    required SgpDeviceIdleProfile profile,
+  }) {
+    return glymphaticScheduler.smartSleep.garbageCollect(
+      nodes: nodes,
+      profile: profile,
+    );
+  }
+
+  /// 메기↔글림파틱 공생 사이클 (유휴 시에만 주입·정화·WORM).
+  Future<CatfishSymbiosisReport> runCatfishSymbiosisCycle({
+    required List<KgPrecedentNode> baseGraph,
+    required SgpDeviceIdleProfile profile,
+    DateTime? now,
+  }) {
+    return catfish.runSymbioticCycle(
+      baseGraph: baseGraph,
+      profile: profile,
+      cleaner: glymphaticScheduler.smartSleep,
+      now: now,
+    );
   }
 
   /// Flutter 화면의 [SgpGlymphaticSession]을 엔진 프로브에 연결 (Dual-Stack 싱글소스화).
@@ -849,9 +900,11 @@ class SgpAgentEngine {
     try {
       final decision = amdahlGunter.observe(
         SgpResourceSample(
-          cpuAvailability: 0.72,
+          cpuAvailability: edgeHybrid.isEdgeLocal ? 0.9 : 0.72,
           memoryAvailability: 0.68,
           queryTrafficRate: amdahlGunter.queryTrafficRate,
+          networkRttMs: amdahlGunter.lastDecision?.networkRttMs ?? 0,
+          packetLossRate: amdahlGunter.lastDecision?.packetLossRate ?? 0,
         ),
       );
 
@@ -898,6 +951,11 @@ class SgpAgentEngine {
           opinionSummary: output.length > 240 ? output.substring(0, 240) : output,
           operationalMode: operationalMode,
         );
+        // 수사 넷 원장 비동기 미러 (단절 시 Enclave 큐)
+        final resiliency = blackboxResiliency;
+        if (resiliency != null) {
+          unawaited(resiliency.mirrorPending());
+        }
       }
 
       // 글림파틱은 쿼리 경로와 격리 — 스케줄러 허용 시에만 트리거

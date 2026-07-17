@@ -25,6 +25,9 @@ class SgpResourceSample {
     required this.memoryAvailability,
     required this.queryTrafficRate,
     this.betaConsistencyLoad = 0.0,
+    this.networkRttMs = 0,
+    this.packetLossRate = 0,
+    this.retransmissionDelayMs = 0,
     this.timestamp,
   });
 
@@ -38,6 +41,15 @@ class SgpResourceSample {
   /// 법령·판례 동기화 일관성 비용 부하 (β 패널티 추정).
   final double betaConsistencyLoad;
 
+  /// 네트워크 RTT(ms). 0 = 미측정/로컬 전용.
+  final double networkRttMs;
+
+  /// 패킷 유실률 0.0~1.0.
+  final double packetLossRate;
+
+  /// 재전송 누적 지연(ms) — 건터 α/β 네트워크 비용.
+  final double retransmissionDelayMs;
+
   final DateTime? timestamp;
 
   double get headroom =>
@@ -45,6 +57,12 @@ class SgpResourceSample {
 
   bool get isPeakTraffic =>
       queryTrafficRate >= 4.0 || betaConsistencyLoad >= 0.55;
+
+  /// RTT>1500ms · 단절 · 유실 급증.
+  bool get isNetworkDegraded =>
+      networkRttMs > 1500 ||
+      packetLossRate >= 0.18 ||
+      retransmissionDelayMs >= 3000;
 }
 
 /// 자율 조정 결정 스냅샷.
@@ -60,6 +78,9 @@ class SgpAutonomicDecision {
     required this.parallelFractionP,
     required this.alpha,
     required this.beta,
+    this.edgeHybrid = false,
+    this.networkRttMs = 0,
+    this.packetLossRate = 0,
   });
 
   final int nMax;
@@ -72,6 +93,11 @@ class SgpAutonomicDecision {
   final double parallelFractionP;
   final double alpha;
   final double beta;
+
+  /// true = Cloud N 차단, Local ON-Device 풀만 사용.
+  final bool edgeHybrid;
+  final double networkRttMs;
+  final double packetLossRate;
 }
 
 /// Active Agent Pool — 건터 N 제한 하의 동시 워커 슬롯.
@@ -240,7 +266,19 @@ class SgpAmdahlGunterController {
   double get queryTrafficRate => _ingressWindow.length / 5.0;
 
   /// 부하 샘플 반영 → N_max·버퍼·글림파틱 I/O 재계산.
+  ///
+  /// 네트워크 재전송 지연 비용을 α/β에 가산하고, 음영 시 Local 풀로 고정한다.
   SgpAutonomicDecision observe(SgpResourceSample sample) {
+    // 네트워크 재전송·유실 → α(경합) / β(일관성) 가산
+    final netAlpha = (sample.retransmissionDelayMs / 10000.0 +
+            sample.packetLossRate * 0.35)
+        .clamp(0.0, 0.45);
+    final netBeta = (sample.packetLossRate * 0.08 +
+            (sample.isNetworkDegraded ? 0.04 : 0.0))
+        .clamp(0.0, 0.20);
+    _alpha = (_alpha * 0.85 + (0.08 + netAlpha) * 0.15).clamp(0.0, 0.95);
+    _beta = math.max(1e-9, _beta * 0.85 + (0.012 + netBeta) * 0.15);
+
     // 피크 타임: β 패널티 상승 반영
     final effectiveBeta = math.max(
       _beta,
@@ -249,9 +287,12 @@ class SgpAmdahlGunterController {
     if (sample.isPeakTraffic) {
       _beta = math.min(0.25, effectiveBeta);
       _asyncQueueBuffer = math.min(256, (_asyncQueueBuffer * 1.5).round());
-    } else {
+    } else if (!sample.isNetworkDegraded) {
       _beta = math.max(1e-9, _beta * 0.98 + 0.012 * 0.02);
       _asyncQueueBuffer = math.max(32, (_asyncQueueBuffer * 0.95).round());
+    } else {
+      // 음영: 동기 대기 큐 확장으로 프리징 차단 (Cloud N=0 대비)
+      _asyncQueueBuffer = math.min(256, _asyncQueueBuffer + 16);
     }
 
     final nMax = SgpAmdahlGunterMath.nMax(
@@ -259,9 +300,16 @@ class SgpAmdahlGunterController {
       beta: _beta,
       hardCap: hardCap,
     );
-    // 가용 헤드룸에 따라 실제 슬롯 하향
-    final headroomSlots =
-        math.max(1, (nMax * sample.headroom).round()).clamp(1, nMax);
+
+    final int headroomSlots;
+    final edgeHybrid = sample.isNetworkDegraded;
+    if (edgeHybrid) {
+      // Cloud 인스턴스 N→0 수렴 차단: Local ON-Device 웜 풀 고정
+      headroomSlots = 2;
+    } else {
+      headroomSlots =
+          math.max(1, (nMax * sample.headroom).round()).clamp(1, nMax);
+    }
     pool.resize(headroomSlots);
 
     final p = parallelFractionP;
@@ -280,7 +328,7 @@ class SgpAmdahlGunterController {
     final allowClean = sample.headroom >= 0.28 && !sample.isPeakTraffic;
 
     final decision = SgpAutonomicDecision(
-      nMax: nMax,
+      nMax: edgeHybrid ? headroomSlots : nMax,
       activeAgents: headroomSlots,
       asyncQueueBuffer: _asyncQueueBuffer,
       glymphaticIoLimit: ioLimit,
@@ -290,6 +338,9 @@ class SgpAmdahlGunterController {
       parallelFractionP: p,
       alpha: _alpha,
       beta: _beta,
+      edgeHybrid: edgeHybrid,
+      networkRttMs: sample.networkRttMs,
+      packetLossRate: sample.packetLossRate,
     );
     _lastDecision = decision;
     return decision;

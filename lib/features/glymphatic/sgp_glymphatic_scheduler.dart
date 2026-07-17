@@ -18,6 +18,7 @@ import 'dart:async';
 
 import '../control/sgp_amdahl_gunter_controller.dart';
 import 'sgp_glymphatic_flush_policy.dart';
+import 'sgp_glymphatic_smart_sleep.dart';
 
 /// 글림파틱 백그라운드 세척 I/O 예산.
 class GlymphaticIoBudget {
@@ -26,6 +27,7 @@ class GlymphaticIoBudget {
     required this.allowClean,
     required this.preferredMode,
     required this.fragmentBatchSize,
+    this.smartSleepActive = false,
   });
 
   /// 0.0 = 정지, 1.0 = 최대 강도.
@@ -35,6 +37,8 @@ class GlymphaticIoBudget {
 
   /// 한 틱당 처리할 파편 상한 (I/O 스케일).
   final int fragmentBatchSize;
+
+  final bool smartSleepActive;
 
   static const idle = GlymphaticIoBudget(
     ioLimit: 0,
@@ -47,17 +51,25 @@ class GlymphaticIoBudget {
 /// 세척 작업 콜백 — Isolate/컨트롤러 트리거는 호출측이 주입.
 typedef GlymphaticCleanWork = Future<void> Function(GlymphaticIoBudget budget);
 
+/// 유휴 Major 세척 직후 메기 공생 훅 (선택).
+typedef CatfishIdleHook = Future<void> Function(
+  GlymphaticIoBudget budget,
+  SgpDeviceIdleProfile profile,
+);
+
 /// 건터 기반 글림파틱 백그라운드 스케줄러 (Worker Thread 역할).
 class SgpGlymphaticScheduler {
   SgpGlymphaticScheduler({
     required this.controller,
     this.tickInterval = const Duration(seconds: 2),
     this.headroomThreshold = 0.28,
-  });
+    SgpGlymphaticSmartSleep? smartSleep,
+  }) : smartSleep = smartSleep ?? SgpGlymphaticSmartSleep();
 
   final SgpAmdahlGunterController controller;
   final Duration tickInterval;
   final double headroomThreshold;
+  final SgpGlymphaticSmartSleep smartSleep;
 
   Timer? _daemon;
   bool _tickInFlight = false;
@@ -65,6 +77,8 @@ class SgpGlymphaticScheduler {
   int _deferredTicks = 0;
   GlymphaticIoBudget _lastBudget = GlymphaticIoBudget.idle;
   GlymphaticCleanWork? _cleanWork;
+  CatfishIdleHook? catfishIdleHook;
+  SgpDeviceIdleProfile Function()? idleProfileProvider;
 
   GlymphaticIoBudget get lastBudget => _lastBudget;
   bool get isDaemonRunning => _daemon != null;
@@ -77,34 +91,55 @@ class SgpGlymphaticScheduler {
   void markUserQueryFinished() => _userQueryActive = false;
 
   /// 현재 리소스·트래픽으로 I/O 예산 산출.
-  GlymphaticIoBudget resolveBudget(SgpResourceSample sample) {
+  GlymphaticIoBudget resolveBudget(
+    SgpResourceSample sample, {
+    SgpDeviceIdleProfile? idleProfile,
+  }) {
     final decision = controller.observe(sample);
+    final profile = idleProfile ??
+        idleProfileProvider?.call() ??
+        SgpDeviceIdleProfile(
+          isCharging: false,
+          idleMinutes: 0,
+          hourOfDay: DateTime.now().hour,
+          userQueryActive: _userQueryActive,
+        );
+
+    GlymphaticIoBudget budget;
     if (!decision.allowGlymphaticClean || decision.glymphaticIoLimit <= 0) {
-      _lastBudget = GlymphaticIoBudget.idle;
-      return _lastBudget;
-    }
-    if (_userQueryActive && sample.headroom < 0.55) {
-      // 쿼리 중에는 Minor만, 배치 축소
+      budget = GlymphaticIoBudget.idle;
+    } else if (_userQueryActive && sample.headroom < 0.55) {
       final limit = decision.glymphaticIoLimit * 0.25;
-      _lastBudget = GlymphaticIoBudget(
+      budget = GlymphaticIoBudget(
         ioLimit: limit,
         allowClean: limit > 0.05,
         preferredMode: GlymphaticFlushMode.minor,
         fragmentBatchSize: mathMax(1, (8 * limit).round()),
       );
-      return _lastBudget;
+      budget = smartSleep.throttleForConcurrentQuery(budget);
+    } else {
+      final mode = sample.headroom >= 0.75 && !_userQueryActive
+          ? GlymphaticFlushMode.major
+          : GlymphaticFlushMode.minor;
+      final batch = mathMax(1, (48 * decision.glymphaticIoLimit).round());
+      budget = GlymphaticIoBudget(
+        ioLimit: decision.glymphaticIoLimit,
+        allowClean: true,
+        preferredMode: mode,
+        fragmentBatchSize: batch,
+      );
     }
 
-    final mode = sample.headroom >= 0.75 && !_userQueryActive
-        ? GlymphaticFlushMode.major
-        : GlymphaticFlushMode.minor;
-    final batch = mathMax(1, (48 * decision.glymphaticIoLimit).round());
-    _lastBudget = GlymphaticIoBudget(
-      ioLimit: decision.glymphaticIoLimit,
-      allowClean: true,
-      preferredMode: mode,
-      fragmentBatchSize: batch,
+    budget = smartSleep.boostBudgetIfSmartSleep(
+      base: budget,
+      profile: profile.copyWith(userQueryActive: _userQueryActive),
     );
+
+    if (_userQueryActive) {
+      budget = smartSleep.throttleForConcurrentQuery(budget);
+    }
+
+    _lastBudget = budget;
     return _lastBudget;
   }
 
@@ -144,6 +179,18 @@ class SgpGlymphaticScheduler {
         return;
       }
       await work(budget);
+      final profile = idleProfileProvider?.call() ??
+          SgpDeviceIdleProfile(
+            isCharging: false,
+            idleMinutes: 0,
+            hourOfDay: DateTime.now().hour,
+            userQueryActive: _userQueryActive,
+          );
+      if (budget.smartSleepActive &&
+          profile.allowsSmartSleep &&
+          catfishIdleHook != null) {
+        await catfishIdleHook!(budget, profile);
+      }
     } finally {
       _tickInFlight = false;
     }
@@ -153,8 +200,9 @@ class SgpGlymphaticScheduler {
   Future<GlymphaticIoBudget> forceTick({
     required SgpResourceSample sample,
     GlymphaticCleanWork? work,
+    SgpDeviceIdleProfile? idleProfile,
   }) async {
-    final budget = resolveBudget(sample);
+    final budget = resolveBudget(sample, idleProfile: idleProfile);
     final w = work ?? _cleanWork;
     if (w != null && budget.allowClean) {
       await w(budget);

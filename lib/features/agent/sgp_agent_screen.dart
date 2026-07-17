@@ -68,6 +68,9 @@ import '../investigation/screens/sgp_death_scene_router.dart';
 import '../control/sgp_custody_management.dart';
 import '../security/sgp_secure_crypto.dart';
 import '../security/sgp_legal_blackbox.dart';
+import '../security/sgp_legal_blackbox_resiliency.dart';
+import '../control/sgp_edge_hybrid_scheduler.dart';
+import '../glymphatic/sgp_glymphatic_smart_sleep.dart';
 import 'sgp_vector_store.dart';
 import '../glymphatic/sgp_glymphatic_controller.dart';
 import '../glymphatic/sgp_glymphatic_flush_policy.dart';
@@ -1567,8 +1570,20 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
       _engine.attachGlymphaticController(_glymphaticController);
       final storageDir = await getAgentStorageDirectory();
       final bbDir = Directory('${storageDir.path}/legal_blackbox');
-      _engine.attachLegalBlackbox(SgpLegalBlackbox(directory: bbDir));
-      unawaited(_engine.legalBlackbox.loadFromDisk());
+      final ledgerDir = Directory('${storageDir.path}/intranet_ledger');
+      final bb = SgpLegalBlackbox(directory: bbDir);
+      _engine.attachLegalBlackbox(bb);
+      _engine.attachBlackboxResiliency(
+        SgpLegalBlackboxResiliency(
+          blackbox: bb,
+          ledger: SgpDirectoryLedgerSink(ledgerDir),
+        ),
+      );
+      unawaited(bb.loadFromDisk());
+      // 기동 시 음영 가정 없이 Cloud Hybrid, 이후 프로브로 전환
+      _engine.applyNetworkProbe(
+        const SgpNetworkProbe(rttMs: 50, packetLossRate: 0.0),
+      );
 
       _engine.glymphaticFlushDelegate = (snapshot) async {
         final sample = SgpResourceSample(
@@ -1610,6 +1625,30 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
         _refreshGlymphaticDashboard();
       };
 
+      _engine.glymphaticScheduler.idleProfileProvider = () => SgpDeviceIdleProfile(
+            isCharging: false,
+            idleMinutes: _glymphaticController.idleSinceUserInteraction.inMinutes
+                .toDouble(),
+            hourOfDay: DateTime.now().hour,
+            userQueryActive: _inferring,
+            backgroundCpuShare: _inferring ? 0.5 : 0.1,
+          );
+      _engine.glymphaticScheduler.catfishIdleHook = (budget, profile) async {
+        if (!budget.smartSleepActive || !profile.allowsSmartSleep) return;
+        await _engine.runCatfishSymbiosisCycle(
+          baseGraph: [
+            KgPrecedentNode(
+              id: 'SEED-SC',
+              title: '대법원 시드',
+              courtLevel: 'supreme',
+              decidedAt: DateTime.utc(2025, 1, 1),
+              statuteRefs: const ['형법20'],
+            ),
+          ],
+          profile: profile,
+        );
+      };
+
       _engine.glymphaticScheduler.startDaemon(
         cleanWork: (budget) async {
           if (!budget.allowClean) return;
@@ -1642,7 +1681,8 @@ class _SgpAgentScreenState extends State<SgpAgentScreen>
       if (mounted) {
         setState(() {
           _modelLoading = false;
-          _statusMessage = '온디바이스 모델 적재 완료 (Amdahl/Gunter·블랙박스 활성)';
+          _statusMessage =
+              '온디바이스 모델 적재 완료 (Edge-Hybrid·Catfish·블랙박스 활성)';
         });
       }
     } catch (e) {
