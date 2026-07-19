@@ -1,0 +1,52 @@
+# SGP-Agent CI — 하이브리드 v2 베이스라인 무결성
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  unit-tests:
+    name: Dart unit tests (control / glymphatic / hybrid)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: Hybrid v1 forensic KPI
+        run: dart test test/features/control/sgp_amdahl_gunter_forensic_test.dart
+
+      - name: Hybrid v2 KPI (Edge / Sleep / Blackbox / Catfish)
+        run: dart test test/features/control/sgp_hybrid_v2_kpi_test.dart
+
+      - name: Baseline stress (음영·대부하)
+        run: dart test test/features/control/sgp_baseline_stress_test.dart
+
+  analyze-core:
+    name: Analyze control & security cores
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: dart analyze (hybrid cores)
+        run: |
+          dart analyze \
+            lib/features/control \
+            lib/features/security/sgp_legal_blackbox.dart \
+            lib/features/security/sgp_legal_blackbox_resiliency.dart \
+            lib/features/agent/sgp_chaos_catfish.dart \
+            lib/features/glymphatic/sgp_glymphatic_scheduler.dart \
+            lib/features/glymphatic/sgp_glymphatic_smart_sleep.dart
