@@ -31,6 +31,9 @@ jobs:
       - name: Baseline stress (음영·대부하)
         run: dart test test/features/control/sgp_baseline_stress_test.dart
 
+      - name: v3 Claim-1 integrity (gesture / Amdahl / immune / purifier)
+        run: dart test test/features/agent/sgp_v3_claim1_kpi_test.dart
+
   analyze-core:
     name: Analyze control & security cores
     runs-on: ubuntu-latest

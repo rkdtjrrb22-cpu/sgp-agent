@@ -28,7 +28,10 @@ import 'sgp_physical_threat_level.dart';
 
 import 'package:sgp_agent/features/control/sgp_amdahl_gunter_controller.dart';
 import 'package:sgp_agent/features/control/sgp_edge_hybrid_scheduler.dart';
+import 'package:sgp_agent/features/agent/sgp_amdahl_switching_controller.dart';
 import 'package:sgp_agent/features/agent/sgp_chaos_catfish.dart';
+import 'package:sgp_agent/features/agent/sgp_glymphatic_overlay_purifier.dart';
+import 'package:sgp_agent/features/agent/sgp_immune_self_evolver.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_agent_node.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_controller.dart';
 import 'package:sgp_agent/features/glymphatic/sgp_glymphatic_flusher.dart';
@@ -519,6 +522,21 @@ class SgpAgentEngine {
   /// SGP-Catfish(메기) — 유휴 시 사법 모순 자극 → 글림파틱 공생 검증.
   late final SgpChaosCatfish catfish = SgpChaosCatfish();
 
+  /// v3 청구항1 — 암달 직렬/병렬 스위칭 (Edge-Hybrid·글림파틱 연동).
+  late final SgpAmdahlSwitchingController amdahlSwitching =
+      SgpAmdahlSwitchingController.linked(
+    controller: amdahlGunter,
+    glymphaticScheduler: glymphaticScheduler,
+  );
+
+  /// v3 청구항1 — 자가 진화 면역 루프.
+  late final SgpImmuneSelfEvolver immuneEvolver =
+      SgpImmuneSelfEvolver(catfish: catfish);
+
+  /// v3 청구항1 — 시냅스 글림파틱 오버레이 정제.
+  late final SgpGlymphaticOverlayPurifier overlayPurifier =
+      SgpGlymphaticOverlayPurifier();
+
   SgpAgentEngine() {
     _glymphaticMain.activate();
     _glymphaticShadow.markReadyForSwap();
@@ -530,6 +548,8 @@ class SgpAgentEngine {
     legalBlackbox = blackbox;
     glymphaticScheduler.smartSleep.blackbox = blackbox;
     catfish.blackbox = blackbox;
+    overlayPurifier.blackbox = blackbox;
+    overlayPurifier.smartSleep.blackbox = blackbox;
   }
 
   /// 수사 넷 원장 싱크 부착 (망분리 디렉터리 PoC).
